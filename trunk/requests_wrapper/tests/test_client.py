@@ -130,6 +130,9 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 3)
 
     def test_get_cache_control_no_cache(self, mock_get):
+        """
+        Make sure we not cache at all even there's a no-cache only at certain field
+        """
         response = Response()
         response.status_code = 200
         response._content = 'Mocked response content'
