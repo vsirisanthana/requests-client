@@ -14,7 +14,7 @@ class TestClient(TestCase):
         cache.clear()
 
     @patch('requests.get')
-    def test_get_cache_control(self, mock_get):
+    def test_get_max_age(self, mock_get):
         response = Response()
         response.status_code = 200
         response._content = 'Mocked response content'
