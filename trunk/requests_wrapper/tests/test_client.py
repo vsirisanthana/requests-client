@@ -165,3 +165,17 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 2)
         client.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 3)
+
+#    def test_get_cache_4xx(self, mock_get):
+#        response = Response()
+#        response.status_code = 400
+#        response._content = 'Mocked response content'
+#        response.headers = {
+#            'Cache-Control': 'max-age=10',
+#        }
+#        mock_get.return_value = response
+#
+#        client.get('http://www.test.com/path')
+#        self.assertEqual(mock_get.call_count, 1)
+#        client.get('http://www.test.com/path')
+#        self.assertEqual(mock_get.call_count, 1)
