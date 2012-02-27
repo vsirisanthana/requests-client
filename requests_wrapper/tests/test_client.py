@@ -74,7 +74,7 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 3)
 
 
-    def test_get_no_cache_control(self, mock_get):
+    def test_get_no_cache_control_header(self, mock_get):
         response = Response()
         response.status_code = 200
         response._content = 'Mocked response content'
@@ -96,7 +96,7 @@ class TestClient(TestCase):
         response._content = 'Mocked response content'
         # no cache-control header
         response.headers = {
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache=field, max-age=10'
         }
         mock_get.return_value = response
 
