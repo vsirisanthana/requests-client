@@ -7,13 +7,12 @@ from requests.models import Response
 
 from requests_wrapper import client
 
-
+@patch('requests.get')
 class TestClient(TestCase):
 
     def setUp(self):
         cache.clear()
 
-    @patch('requests.get')
     def test_get_max_age(self, mock_get):
         response = Response()
         response.status_code = 200
@@ -33,7 +32,6 @@ class TestClient(TestCase):
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
 
-    @patch('requests.get')
     def test_get_different_urls(self, mock_get):
         response = Response()
         response.status_code = 200
@@ -54,7 +52,7 @@ class TestClient(TestCase):
         client.get('http://www.test.com/path/2')
         self.assertEqual(mock_get.call_count, 3)
 
-    @patch('requests.get')
+
     def test_get_different_queries(self, mock_get):
         response = Response()
         response.status_code = 200
@@ -74,3 +72,5 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 3)
         client.get('http://www.test.com/path?name=john&age=30')
         self.assertEqual(mock_get.call_count, 3)
+
+
