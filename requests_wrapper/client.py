@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from django.utils.cache import get_max_age, patch_response_headers
 import requests
 
 from django.core.cache import cache
@@ -10,55 +11,54 @@ from django.views.decorators.cache import cache_page
 #cache = dict(_responses=dict())
 
 
-def _use_cache(url, expire_after=5):
+def get_cache_response(url):
+    """
+    Checks whether the page is already cached and returns the cached
+    version if available.
+    """
+    cache_key = get_cache_key(request, self.key_prefix, 'GET', cache=self.cache)
+    if cache_key is None:
+        return None # No cache information available, need to send a request.
+    response = cache.get(cache_key, None)
 
-    try:
-        pointer = cache[url]
-        stored_at, response = cache['_responses'][pointer]
-    except KeyError:
-        return False, None
-    difference = datetime.now() - stored_at
-    if difference < timedelta(minutes=expire_after):
-        return True, response
-    else:
-        for r in response.history:
-            del cache[r.url]
-        del cache['_responses'][url]
-        del cache[url]
-        print 'sending request'
-    return False, None
+    if response is None:
+        return None# No cache information available, need to send a request
 
-def _to_cache(response, allowable_codes=(200,)):
-    if (response.status_code in allowable_codes
-        and not hasattr(response, '_from_cache')):
-        response._from_cache = True
-        cache['_responses'][response.url] = datetime.now(), response
-        cache[response.url] = response.url
-        for r in response.history:
-            cache[r.url] = response.url
+    return response
+
+def process_response(response, allowable_codes=(200,)):
+    """Sets the cache, if needed."""
+
+    if not response.status_code == 200:
+        return response
+        # Try to get the timeout from the "max-age" section of the "Cache-
+
+    # Control" header before reverting to using the default cache_timeout
+    # length.
+    timeout = get_max_age(response)
+    if timeout == None:
+        timeout = self.cache_timeout
+    elif timeout == 0:
+        # max-age was set to 0, don't bother caching.
+        return response
+    patch_response_headers(response, timeout)
+    if timeout:
+        cache_key = learn_cache_key(request, response, timeout, self.key_prefix, cache=self.cache)
+        if hasattr(response, 'render') and callable(response.render):
+            response.add_post_render_callback(
+                lambda r: cache.set(cache_key, r, timeout)
+            )
+        else:
+            cache.set(cache_key, response, timeout)
     return response
 
 def get(url, **kwargs):
 
-    # try and get the cached GET response
-    cache_key = get_cache_key(request, self.key_prefix, 'GET', cache=self.cache)
+    response = get_cache_response(url)
+    if response:
+        return response
 
-    if cache_key is None:
-        _cache_update_cache = True
-
-    response = cache.get(cache_key, None)
-
-    if response is None:
-        _cache_update_cache = True
-
-    if response is not None:
-        response = requests.get(url, **kwargs)
-
-    if _cache_update_cache:
-        cache_key = learn_cache_key()
-        cache.set(cache_key, response, timeout)
-
-    return response
+    return requests.get(url, hooks=dict(response=process_response), **kwargs)
 
 
 def post(url, **kwargs):
