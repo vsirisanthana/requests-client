@@ -7,6 +7,7 @@ from requests.models import Response
 
 from requests_wrapper import client
 
+
 @patch('requests.get')
 class TestClient(TestCase):
 
@@ -38,7 +39,7 @@ class TestClient(TestCase):
         response._content = 'Mocked response content'
         response.headers = {
             'Cache-Control': 'max-age=10',
-            }
+        }
         mock_get.return_value = response
 
         client.get('http://www.test.com/path/1')
@@ -52,14 +53,13 @@ class TestClient(TestCase):
         client.get('http://www.test.com/path/2')
         self.assertEqual(mock_get.call_count, 3)
 
-
     def test_get_different_queries(self, mock_get):
         response = Response()
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
             'Cache-Control': 'max-age=10',
-            }
+        }
         mock_get.return_value = response
 
         client.get('http://www.test.com/path?name=john')
@@ -73,6 +73,46 @@ class TestClient(TestCase):
         client.get('http://www.test.com/path?name=john&age=30')
         self.assertEqual(mock_get.call_count, 3)
 
+    def test_get_different_fragments(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=10',
+        }
+        mock_get.return_value = response
+
+        client.get('http://www.test.com/path#help')
+        self.assertEqual(mock_get.call_count, 1)
+        client.get('http://www.test.com/path#header')
+        self.assertEqual(mock_get.call_count, 2)
+        client.get('http://www.test.com/path#header')
+        self.assertEqual(mock_get.call_count, 2)
+        client.get('http://www.test.com/path#footer')
+        self.assertEqual(mock_get.call_count, 3)
+        client.get('http://www.test.com/path#help')
+        self.assertEqual(mock_get.call_count, 3)
+
+    def test_get_vary_on_accept(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=10',
+            'Vary': 'Accept'
+        }
+        mock_get.return_value = response
+
+        client.get('http://www.test.com/path', headers={'Accept': 'application/json'})
+        self.assertEqual(mock_get.call_count, 1)
+        client.get('http://www.test.com/path', headers={'Accept': 'application/json'})
+        self.assertEqual(mock_get.call_count, 1)
+        client.get('http://www.test.com/path', headers={'Accept': 'application/xml'})
+        self.assertEqual(mock_get.call_count, 2)
+        client.get('http://www.test.com/path', headers={'Accept': 'text/html'})
+        self.assertEqual(mock_get.call_count, 3)
+        client.get('http://www.test.com/path', headers={'Accept': 'application/json, */*'})
+        self.assertEqual(mock_get.call_count, 4)
 
     def test_get_no_cache_control_header(self, mock_get):
         response = Response()
@@ -88,7 +128,6 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 2)
         client.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 3)
-
 
     def test_get_cache_control_no_cache(self, mock_get):
         response = Response()
@@ -106,6 +145,3 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 2)
         client.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 3)
-
-
-
