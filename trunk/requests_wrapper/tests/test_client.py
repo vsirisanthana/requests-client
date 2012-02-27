@@ -74,3 +74,38 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 3)
 
 
+    def test_get_no_cache_control(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        # no cache-control header
+        response.headers = {}
+        mock_get.return_value = response
+
+        client.get('http://www.test.com/nocache_control=True')
+        self.assertEqual(mock_get.call_count, 1)
+        client.get('http://www.test.com/nocache_control=True')
+        self.assertEqual(mock_get.call_count, 2)
+        client.get('http://www.test.com/nocache_control=True')
+        self.assertEqual(mock_get.call_count, 3)
+
+
+    def test_get_cache_control_no_cache(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        # no cache-control header
+        response.headers = {
+            'Cache-Control': 'no-cache'
+        }
+        mock_get.return_value = response
+
+        client.get('http://www.test.com/nocache_control=True')
+        self.assertEqual(mock_get.call_count, 1)
+        client.get('http://www.test.com/nocache_control=True')
+        self.assertEqual(mock_get.call_count, 2)
+        client.get('http://www.test.com/nocache_control=True')
+        self.assertEqual(mock_get.call_count, 3)
+
+
+
