@@ -1,8 +1,9 @@
 # Django settings for rest_client project.
+
 import os
 
-PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
-PROJECT_PATH_JOIN = lambda a, *p: os.path.join(PROJECT_DIR, a, *p)
+PROJECT_PATH = os.path.abspath( os.path.dirname(__file__) )
+join_with_project_path = lambda a, *p: os.path.join(PROJECT_PATH, a, *p)
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -16,7 +17,7 @@ MANAGERS = ADMINS
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': 'rest_client.db',                      # Or path to database file if using sqlite3.
+        'NAME': join_with_project_path('rest_client.db'),                   # Or path to database file if using sqlite3.
         'USER': '',                      # Not used with sqlite3.
         'PASSWORD': '',                  # Not used with sqlite3.
         'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
@@ -110,7 +111,6 @@ TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    PROJECT_PATH_JOIN('templates'),
 )
 
 INSTALLED_APPS = (
@@ -148,4 +148,12 @@ LOGGING = {
             'propagate': True,
         },
     }
+}
+
+# Caching
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': join_with_project_path('.cache'),
+        }
 }
