@@ -1,7 +1,13 @@
 from datetime import datetime, timedelta
 import requests
 
-cache = dict(_responses=dict())
+from django.core.cache import cache
+
+from django.http import HttpRequest
+
+from django.views.decorators.cache import cache_page
+
+#cache = dict(_responses=dict())
 
 
 def _use_cache(url, expire_after=5):
@@ -32,11 +38,27 @@ def _to_cache(response, allowable_codes=(200,)):
             cache[r.url] = response.url
     return response
 
-def get(url):
-    use_cache, response = _use_cache(url)
-    if use_cache:
-        return response
-    return requests.get(url, hooks=dict(response=_to_cache))
+def get(url, **kwargs):
+
+    # try and get the cached GET response
+    cache_key = get_cache_key(request, self.key_prefix, 'GET', cache=self.cache)
+
+    if cache_key is None:
+        _cache_update_cache = True
+
+    response = cache.get(cache_key, None)
+
+    if response is None:
+        _cache_update_cache = True
+
+    if response is not None:
+        response = requests.get(url, **kwargs)
+
+    if _cache_update_cache:
+        cache_key = learn_cache_key()
+        cache.set(cache_key, response, timeout)
+
+    return response
 
 
 def post(url, **kwargs):
