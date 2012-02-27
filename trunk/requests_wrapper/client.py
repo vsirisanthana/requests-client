@@ -13,7 +13,12 @@ def get(url, **kwargs):
     http_request = HttpRequest()
     http_request.path = url
     http_request.method = 'GET'
-    http_request.META = kwargs['headers'] if kwargs.has_key('headers') else {}
+    http_request.META = {}
+
+    # HttpRequest.META in Django prefixes each header with HTTP_
+    if kwargs.has_key('headers'):
+        for key, value in kwargs['headers'].items():
+            http_request.META['HTTP_'+key.upper().replace('-', '_')] = value
 
     cache_middleware = CacheMiddleware()
     response = cache_middleware.process_request(http_request)
