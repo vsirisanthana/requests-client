@@ -1,10 +1,7 @@
 import requests
 from requests import *
 from django.http import HttpRequest, HttpResponse
-from django.middleware.cache import CacheMiddleware
-
-#from django.core.cache import cache
-
+from requests_wrapper.cache import CacheManager
 
 
 def get(url, **kwargs):
@@ -20,8 +17,8 @@ def get(url, **kwargs):
         for key, value in kwargs['headers'].items():
             http_request.META['HTTP_'+key.upper().replace('-', '_')] = value
 
-    cache_middleware = CacheMiddleware()
-    response = cache_middleware.process_request(http_request)
+    cache_manager = CacheManager()
+    response = cache_manager.process_request(http_request)
     if response:
         return response
 
@@ -32,7 +29,7 @@ def get(url, **kwargs):
 #    if response.status_code == 301:
 #        cache.set('redirect.%s' % url, )
 
-    # 2. Cache 2xx and 4xx
+    # 2. Cache 2xx and 4xx --- DONE!!!
 
     # 3. Send If-Modified-Since if response has Last-Modified
 
@@ -46,5 +43,5 @@ def get(url, **kwargs):
         for header in response.headers:
             http_response[header] = response.headers[header]
 
-        cache_middleware.process_response(http_request, http_response)
+        cache_manager.process_response(http_request, http_response)
     return response
