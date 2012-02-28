@@ -329,3 +329,9 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 2)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
+
+        # assert get the redirected url direct is working fine, and give us result from cache
+        r = client.get('http://www.test.com/redirect_here')
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.content, 'Mocked response content')
