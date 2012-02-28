@@ -2,7 +2,7 @@ from time import sleep
 
 from django.core.cache import cache
 from django.test import TestCase
-from mock import patch
+from mock import patch, call
 from requests.models import Response
 
 from requests_wrapper import client
@@ -267,3 +267,65 @@ class TestClient(TestCase):
         response = client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 404)
+
+    def test_get_301_only_once(self, mock_get):
+
+        def return_response(*args, **kwargs):
+            response = Response()
+            if args[0] == 'http://www.test.com/neverseemeagain':
+                response.status_code = 301
+                response._content = 'http://www.test.com/redirect_here'
+                response.headers = {
+                    'Location': 'http://www.test.com/redirect_here'
+                }
+            else:
+                response.status_code = 200
+                response._content = 'Mocked response content'
+                response.headers = {
+                    'Vary': 'Accept'
+                }
+            return response
+        mock_get.side_effect = return_response
+
+        r = client.get('http://www.test.com/neverseemeagain')
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_get.mock_calls[0], call('http://www.test.com/neverseemeagain', allow_redirects=False))
+        self.assertEqual(mock_get.mock_calls[1], call('http://www.test.com/redirect_here', allow_redirects=False))
+
+        #assert we not make request to 301 again
+        r = client.get('http://www.test.com/neverseemeagain')
+        self.assertEqual(mock_get.call_count, 3)
+        self.assertEqual(mock_get.mock_calls[2], call('http://www.test.com/redirect_here', allow_redirects=False))
+        self.assertEqual(r.status_code, 200)
+
+
+    def test_get_301_only_once_with_cache(self, mock_get):
+
+        def return_response(*args, **kwargs):
+            response = Response()
+            if args[0] == 'http://www.test.com/neverseemeagain':
+                response.status_code = 301
+                response._content = 'http://www.test.com/redirect_here'
+                response.headers = {
+                    'Location': 'http://www.test.com/redirect_here'
+                }
+            else:
+                response.status_code = 200
+                response._content = 'Mocked response content'
+                response.headers = {
+                    'Cache-Control': 'max-age=10',
+                    'Vary': 'Accept'
+                }
+            return response
+        mock_get.side_effect = return_response
+
+        r = client.get('http://www.test.com/neverseemeagain')
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_get.mock_calls[0], call('http://www.test.com/neverseemeagain', allow_redirects=False))
+        self.assertEqual(mock_get.mock_calls[1], call('http://www.test.com/redirect_here', allow_redirects=False))
+
+        # assert we not making any call as we get result from cache
+        r = client.get('http://www.test.com/neverseemeagain')
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.content, 'Mocked response content')
