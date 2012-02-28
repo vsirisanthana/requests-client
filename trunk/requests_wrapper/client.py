@@ -1,17 +1,22 @@
 import requests
 from requests import *
+from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse
+
 from requests_wrapper.cache import CacheManager
 
-from django.core.cache import cache
 
 def get(url, **kwargs):
 
     # check if the url is permanently redirect or not
-    redirect_to = cache.get('redirect.%s' % url)
-    if redirect_to:
-        return get(redirect_to, **kwargs)
-
+    history = []
+    while True:
+        if url in history:
+            raise TooManyRedirects()
+        redirect_to = cache.get('redirect.%s' % url)
+        if redirect_to is None:
+            break
+        url = redirect_to
 
     # Construct Django HttpRequest object
     http_request = HttpRequest()
