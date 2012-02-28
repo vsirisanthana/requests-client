@@ -337,6 +337,128 @@ class TestClient(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
 
+    def test_get_301_thrice(self, mock_get):
+        response0 = Response()
+        response0.url = 'http://www.test.com/neverseemeagain'
+        response0.status_code = 301
+        response0.headers = {
+            'Location': 'http://www.test.com/redirect_1',
+            }
+
+        response1 = Response()
+        response1.url = 'http://www.test.com/redirect_1'
+        response1.status_code = 301
+        response1.headers = {
+            'Location': 'http://www.test.com/redirect_2',
+            }
+
+        response2 = Response()
+        response2.url = 'http://www.test.com/redirect_2'
+        response2.status_code = 301
+        response2.headers = {
+            'Location': 'http://www.test.com/redirect_3',
+            }
+
+        response3 = Response()
+        response3.url = 'http://www.test.com/redirect_3'
+        response3.status_code = 200
+        response3._content = 'Mocked response content'
+        response3.headers = {
+            'Vary': 'Accept',
+            }
+        response3.history = [response0, response1, response2]
+
+        mock_get.return_value = response3
+
+
+        r = client.get('http://www.test.com/neverseemeagain')
+        self.assertEqual(mock_get.call_count, 1)
+        mock_get.assert_called_with('http://www.test.com/neverseemeagain')
+        self.assertEqual(r.status_code, 200)
+
+        #assert we not make request to 301 again
+        r = client.get('http://www.test.com/neverseemeagain')
+        self.assertEqual(mock_get.call_count, 2)
+        mock_get.assert_called_with('http://www.test.com/redirect_3')
+        self.assertEqual(r.status_code, 200)
+
+        r = client.get('http://www.test.com/redirect_1')
+        self.assertEqual(mock_get.call_count, 3)
+        mock_get.assert_called_with('http://www.test.com/redirect_3')
+        self.assertEqual(r.status_code, 200)
+
+        r = client.get('http://www.test.com/redirect_2')
+        self.assertEqual(mock_get.call_count, 4)
+        mock_get.assert_called_with('http://www.test.com/redirect_3')
+        self.assertEqual(r.status_code, 200)
+
+        r = client.get('http://www.test.com/redirect_3')
+        self.assertEqual(mock_get.call_count, 5)
+        mock_get.assert_called_with('http://www.test.com/redirect_3')
+        self.assertEqual(r.status_code, 200)
+
+    def test_get_301_thrice_with_cache(self, mock_get):
+        response0 = Response()
+        response0.url = 'http://www.test.com/neverseemeagain'
+        response0.status_code = 301
+        response0.headers = {
+            'Location': 'http://www.test.com/redirect_1',
+            }
+
+        response1 = Response()
+        response1.url = 'http://www.test.com/redirect_1'
+        response1.status_code = 301
+        response1.headers = {
+            'Location': 'http://www.test.com/redirect_2',
+            }
+
+        response2 = Response()
+        response2.url = 'http://www.test.com/redirect_2'
+        response2.status_code = 301
+        response2.headers = {
+            'Location': 'http://www.test.com/redirect_3',
+            }
+
+        response3 = Response()
+        response3.url = 'http://www.test.com/redirect_3'
+        response3.status_code = 200
+        response3._content = 'Mocked response content'
+        response3.headers = {
+            'Cache-Control': 'max-age=10',
+            'Vary': 'Accept',
+            }
+        response3.history = [response0, response1, response2]
+
+        mock_get.return_value = response3
+
+
+        r = client.get('http://www.test.com/neverseemeagain')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.content, 'Mocked response content')
+
+        # assert we not making any call as we get result from cache
+        r = client.get('http://www.test.com/neverseemeagain')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.content, 'Mocked response content')
+
+        # assert get the redirected url direct is working fine, and give us result from cache
+        r = client.get('http://www.test.com/redirect_1')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.content, 'Mocked response content')
+
+        r = client.get('http://www.test.com/redirect_2')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.content, 'Mocked response content')
+
+        r = client.get('http://www.test.com/redirect_3')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.content, 'Mocked response content')
+
     def test_get_if_modified_since_header(self, mock_get):
         response = Response()
         response.status_code = 200
