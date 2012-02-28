@@ -2,7 +2,7 @@ from django.middleware.cache import CacheMiddleware
 from django.utils.cache import get_cache_key, learn_cache_key, patch_response_headers, get_max_age
 
 
-CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX = 'second'
+CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX = 'longterm'
 CACHE_MANAGER_LONG_TERM_CACHE_SECONDS = 60 * 60 * 24 * 30
 
 

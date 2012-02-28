@@ -41,15 +41,16 @@ def get(url, **kwargs):
                 key = key.replace('HTTP_', '').replace('_', '-').title()
                 kwargs['headers'][key] = value
 
-    kwargs['allow_redirects'] = False
-    
     response = requests.get(url, **kwargs)
 
-    if response.status_code == 301:
-        #TODO: handle case of no Location header
-        redirect_to = response.headers.get('Location')
-        cache.set('redirect.%s' % url, redirect_to )
-        return get(redirect_to, **kwargs)
+    if response.history:
+        http_request.path = response.url
+
+        for r in response.history:
+            if r.status_code == 301:
+                #TODO: handle case of no Location header
+                redirect_to = r.headers.get('Location')
+                cache.set('redirect.%s' % r.url, redirect_to)
 
     # TODO:
     # 1. Check for 301 -- DONE!!!

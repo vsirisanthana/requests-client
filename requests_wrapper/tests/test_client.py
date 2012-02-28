@@ -2,7 +2,7 @@ from time import sleep
 
 from django.core.cache import cache
 from django.test import TestCase
-from mock import patch, call
+from mock import patch
 from requests.models import Response
 
 from requests_wrapper import client
@@ -269,73 +269,73 @@ class TestClient(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_get_301_only_once(self, mock_get):
+        response0 = Response()
+        response0.url = 'http://www.test.com/neverseemeagain'
+        response0.status_code = 301
+        response0.headers = {
+            'Location': 'http://www.test.com/redirect_here',
+        }
 
-        def return_response(*args, **kwargs):
-            response = Response()
-            if args[0] == 'http://www.test.com/neverseemeagain':
-                response.status_code = 301
-                response._content = 'http://www.test.com/redirect_here'
-                response.headers = {
-                    'Location': 'http://www.test.com/redirect_here'
-                }
-            else:
-                response.status_code = 200
-                response._content = 'Mocked response content'
-                response.headers = {
-                    'Vary': 'Accept'
-                }
-            return response
-        mock_get.side_effect = return_response
+        response1 = Response()
+        response1.url = 'http://www.test.com/redirect_here'
+        response1.status_code = 200
+        response1._content = 'Mocked response content'
+        response1.headers = {
+            'Vary': 'Accept',
+        }
+        response1.history = [response0]
+
+        mock_get.return_value = response1
+
 
         r = client.get('http://www.test.com/neverseemeagain')
-        self.assertEqual(mock_get.call_count, 2)
-        self.assertEqual(mock_get.mock_calls[0], call('http://www.test.com/neverseemeagain', allow_redirects=False))
-        self.assertEqual(mock_get.mock_calls[1], call('http://www.test.com/redirect_here', allow_redirects=False))
+        self.assertEqual(mock_get.call_count, 1)
+        mock_get.assert_called_with('http://www.test.com/neverseemeagain')
+        self.assertEqual(r.status_code, 200)
 
         #assert we not make request to 301 again
         r = client.get('http://www.test.com/neverseemeagain')
-        self.assertEqual(mock_get.call_count, 3)
-        self.assertEqual(mock_get.mock_calls[2], call('http://www.test.com/redirect_here', allow_redirects=False))
+        self.assertEqual(mock_get.call_count, 2)
+        mock_get.assert_called_with('http://www.test.com/redirect_here')
         self.assertEqual(r.status_code, 200)
 
-
     def test_get_301_only_once_with_cache(self, mock_get):
+        response0 = Response()
+        response0.url = 'http://www.test.com/neverseemeagain'
+        response0.status_code = 301
+        response0.headers = {
+            'Location': 'http://www.test.com/redirect_here',
+        }
 
-        def return_response(*args, **kwargs):
-            response = Response()
-            if args[0] == 'http://www.test.com/neverseemeagain':
-                response.status_code = 301
-                response._content = 'http://www.test.com/redirect_here'
-                response.headers = {
-                    'Location': 'http://www.test.com/redirect_here'
-                }
-            else:
-                response.status_code = 200
-                response._content = 'Mocked response content'
-                response.headers = {
-                    'Cache-Control': 'max-age=10',
-                    'Vary': 'Accept'
-                }
-            return response
-        mock_get.side_effect = return_response
+        response1 = Response()
+        response1.url = 'http://www.test.com/redirect_here'
+        response1.status_code = 200
+        response1._content = 'Mocked response content'
+        response1.headers = {
+            'Cache-Control': 'max-age=10',
+            'Vary': 'Accept',
+        }
+        response1.history = [response0]
+
+        mock_get.return_value = response1
+
 
         r = client.get('http://www.test.com/neverseemeagain')
-        self.assertEqual(mock_get.call_count, 2)
-        self.assertEqual(mock_get.mock_calls[0], call('http://www.test.com/neverseemeagain', allow_redirects=False))
-        self.assertEqual(mock_get.mock_calls[1], call('http://www.test.com/redirect_here', allow_redirects=False))
+        self.assertEqual(mock_get.call_count, 1)
+        mock_get.assert_called_with('http://www.test.com/neverseemeagain')
+        self.assertEqual(r.status_code, 200)
 
         # assert we not making any call as we get result from cache
         r = client.get('http://www.test.com/neverseemeagain')
-        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
 
         # assert get the redirected url direct is working fine, and give us result from cache
         r = client.get('http://www.test.com/redirect_here')
-        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
-
 
     def test_get_if_modified_since_header(self, mock_get):
         response = Response()
@@ -349,15 +349,13 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
-        #mock_get.assert_called_with('http://www.test.com/path')
-        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path')
 
         sleep(1)
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
-#        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Tue, 28 Feb 2012 15:50:14 GMT'})
-        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Tue, 28 Feb 2012 15:50:14 GMT'}, allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Tue, 28 Feb 2012 15:50:14 GMT'})
 
     def test_get_if_modified_since_header_not_overridden(self, mock_get):
         response = Response()
@@ -371,15 +369,13 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
-#        mock_get.assert_called_with('http://www.test.com/path')
-        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path')
 
         sleep(1)
 
         client.get('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
         self.assertEqual(mock_get.call_count, 2)
-#        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
-        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'}, allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
 
     def test_get_if_modified_since_header_no_cache(self, mock_get):
         response = Response()
@@ -393,15 +389,15 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
-        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path')
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
-        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path')
 
         client.get('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'})
         self.assertEqual(mock_get.call_count, 3)
-        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'}, allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'})
 
     def test_get_if_none_match_header(self, mock_get):
         response = Response()
@@ -415,15 +411,13 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
-        #mock_get.assert_called_with('http://www.test.com/path')
-        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path')
 
         sleep(1)
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
-        #        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Tue, 28 Feb 2012 15:50:14 GMT'})
-        mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"fdcd6016cf6059cbbf418d66a51a6b0a"'}, allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"fdcd6016cf6059cbbf418d66a51a6b0a"'})
 
     def test_get_if_none_match_header_not_overridden(self, mock_get):
         response = Response()
@@ -437,15 +431,13 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
-        #        mock_get.assert_called_with('http://www.test.com/path')
-        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path')
 
         sleep(1)
 
         client.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
         self.assertEqual(mock_get.call_count, 2)
-        #        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'})
-        mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'}, allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
 
     def test_get_if_modified_since_header_no_cache(self, mock_get):
         response = Response()
@@ -459,12 +451,12 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
-        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path')
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
-        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path')
 
         client.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
         self.assertEqual(mock_get.call_count, 3)
-        mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'}, allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
