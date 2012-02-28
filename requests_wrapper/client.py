@@ -30,6 +30,7 @@ def get(url, **kwargs):
         return response
 
     cache_manager.patch_if_modified_since_header(http_request)
+    cache_manager.patch_if_none_match_header(http_request)
 
     # Copy HttpRequest headers back
     if http_request.META.items():
@@ -52,14 +53,13 @@ def get(url, **kwargs):
 
     # TODO:
     # 1. Check for 301 -- DONE!!!
-#    if response.status_code == 301:
-#        cache.set('redirect.%s' % url, )
 
     # 2. Cache 2xx and 4xx --- DONE!!!
 
     # 3. Send If-Modified-Since if response has Last-Modified
+    #   3.1 Change Last-Modified format
 
-    # 4. Send If-None-Match if response has ETag
+    # 4. Send If-None-Match if response has ETag --- DONE!!!
 
     #Update cache if cache-control is not no-cache
     cache_control = response.headers.get('Cache-Control')

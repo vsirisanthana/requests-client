@@ -22,6 +22,20 @@ class CacheManager(CacheMiddleware):
                     if response.has_header('Last-Modified'):
                         request.META['HTTP_IF_MODIFIED_SINCE'] = response['Last-Modified']
 
+    def patch_if_none_match_header(self, request):
+        """
+        Add 'If-None-Match' header to request if:
+        1. request does not have 'If-None-Match' already, and
+        2. Previous response has 'ETag' header.
+        """
+        if 'HTTP_IF_NONE_MATCH' not in request.META:
+            cache_key = get_cache_key(request, CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX+self.key_prefix, 'GET', cache=self.cache)
+            if cache_key is not None:
+                response = self.cache.get(cache_key, None)
+                if response is not None:
+                    if response.has_header('ETag'):
+                        request.META['HTTP_IF_NONE_MATCH'] = response['ETag']
+
     def process_response(self, request, response):
         """Sets the cache, if needed."""
         if not self._should_update_cache(request, response):
@@ -38,14 +52,18 @@ class CacheManager(CacheMiddleware):
         elif timeout == 0:
             # max-age was set to 0, don't bother caching.
             return response
-        patch_response_headers(response, timeout)
+#        patch_response_headers(response, timeout)
         if timeout:
             cache_key = learn_cache_key(request, response, timeout, self.key_prefix, cache=self.cache)
             long_term_cache_key = learn_cache_key(request, response, CACHE_MANAGER_LONG_TERM_CACHE_SECONDS, CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX+self.key_prefix, cache=self.cache)
             if hasattr(response, 'render') and callable(response.render):
-                response.add_post_render_callback(
-                    lambda r: self.cache.set(cache_key, r, timeout)
-                )
+
+                # TODO: Investigate 'post_render_callback'
+                def post_render_callback(r):
+                    self.cache.set(cache_key, r, timeout)
+                    self.cache.set(long_term_cache_key, r, CACHE_MANAGER_LONG_TERM_CACHE_SECONDS)
+
+                response.add_post_render_callback(post_render_callback)
             else:
                 self.cache.set(cache_key, response, timeout)
                 self.cache.set(long_term_cache_key, response, CACHE_MANAGER_LONG_TERM_CACHE_SECONDS)
