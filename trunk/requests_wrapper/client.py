@@ -29,7 +29,19 @@ def get(url, **kwargs):
     if response:
         return response
 
+    cache_manager.patch_if_modified_since_header(http_request)
+
+    # Copy HttpRequest headers back
+    if http_request.META.items():
+        if not kwargs.has_key('headers'):
+            kwargs['headers'] = {}
+        for key, value in http_request.META.items():
+            if key.startswith('HTTP_') or key in ['CONTENT_LENGTH', 'CONTENT_TYPE']:
+                key = key.replace('HTTP_', '').replace('_', '-').title()
+                kwargs['headers'][key] = value
+
     kwargs['allow_redirects'] = False
+    
     response = requests.get(url, **kwargs)
 
     if response.status_code == 301:
