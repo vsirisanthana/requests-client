@@ -335,3 +335,70 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 2)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
+
+
+    def test_get_if_modified_since_header(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=1',
+            'Last-Modified': '2012-02-22 12:03:54.681799',
+            }
+        mock_get.return_value = response
+
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        #mock_get.assert_called_with('http://www.test.com/path')
+        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+
+        sleep(1)
+
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 2)
+#        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2012-02-22 12:03:54.681799'})
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2012-02-22 12:03:54.681799'}, allow_redirects=False)
+
+    def test_get_if_modified_since_header_not_overridden(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=1',
+            'Last-Modified': '2012-02-22 12:03:54.681799',
+            }
+        mock_get.return_value = response
+
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+#        mock_get.assert_called_with('http://www.test.com/path')
+        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+
+        sleep(1)
+
+        client.get('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
+        self.assertEqual(mock_get.call_count, 2)
+#        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'}, allow_redirects=False)
+
+    def test_get_if_modified_since_header_no_cache(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=0',
+            'Last-Modified': '2012-02-22 12:03:54.681799',
+            }
+        mock_get.return_value = response
+
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 2)
+        mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
+
+        client.get('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
+        self.assertEqual(mock_get.call_count, 3)
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'}, allow_redirects=False)

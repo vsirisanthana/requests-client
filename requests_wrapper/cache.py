@@ -1,8 +1,26 @@
 from django.middleware.cache import CacheMiddleware
-from django.utils.cache import get_max_age, patch_response_headers, learn_cache_key
+from django.utils.cache import get_cache_key, learn_cache_key, patch_response_headers, get_max_age
+
+
+CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX = 'second'
+CACHE_MANAGER_LONG_TERM_CACHE_SECONDS = 60 * 60 * 24 * 30
 
 
 class CacheManager(CacheMiddleware):
+
+    def patch_if_modified_since_header(self, request):
+        """
+        Add 'If-Modified-Since' header to request if:
+        1. request does not have 'If-Modified-Since' already, and
+        2. Previous response has 'Last-Modified' header.
+        """
+        if 'HTTP_IF_MODIFIED_SINCE' not in request.META:
+            cache_key = get_cache_key(request, CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX+self.key_prefix, 'GET', cache=self.cache)
+            if cache_key is not None:
+                response = self.cache.get(cache_key, None)
+                if response is not None:
+                    if response.has_header('Last-Modified'):
+                        request.META['HTTP_IF_MODIFIED_SINCE'] = response['Last-Modified']
 
     def process_response(self, request, response):
         """Sets the cache, if needed."""
@@ -23,10 +41,12 @@ class CacheManager(CacheMiddleware):
         patch_response_headers(response, timeout)
         if timeout:
             cache_key = learn_cache_key(request, response, timeout, self.key_prefix, cache=self.cache)
+            long_term_cache_key = learn_cache_key(request, response, CACHE_MANAGER_LONG_TERM_CACHE_SECONDS, CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX+self.key_prefix, cache=self.cache)
             if hasattr(response, 'render') and callable(response.render):
                 response.add_post_render_callback(
                     lambda r: self.cache.set(cache_key, r, timeout)
                 )
             else:
                 self.cache.set(cache_key, response, timeout)
+                self.cache.set(long_term_cache_key, response, CACHE_MANAGER_LONG_TERM_CACHE_SECONDS)
         return response
