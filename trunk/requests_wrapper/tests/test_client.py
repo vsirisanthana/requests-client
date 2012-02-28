@@ -343,7 +343,7 @@ class TestClient(TestCase):
         response._content = 'Mocked response content'
         response.headers = {
             'Cache-Control': 'max-age=1',
-            'Last-Modified': '2012-02-22 12:03:54.681799',
+            'Last-Modified': 'Tue, 28 Feb 2012 15:50:14 GMT',
             }
         mock_get.return_value = response
 
@@ -356,8 +356,8 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
-#        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2012-02-22 12:03:54.681799'})
-        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2012-02-22 12:03:54.681799'}, allow_redirects=False)
+#        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Tue, 28 Feb 2012 15:50:14 GMT'})
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Tue, 28 Feb 2012 15:50:14 GMT'}, allow_redirects=False)
 
     def test_get_if_modified_since_header_not_overridden(self, mock_get):
         response = Response()
@@ -365,7 +365,7 @@ class TestClient(TestCase):
         response._content = 'Mocked response content'
         response.headers = {
             'Cache-Control': 'max-age=1',
-            'Last-Modified': '2012-02-22 12:03:54.681799',
+            'Last-Modified': 'Tue, 28 Feb 2012 15:50:14 GMT',
             }
         mock_get.return_value = response
 
@@ -387,7 +387,7 @@ class TestClient(TestCase):
         response._content = 'Mocked response content'
         response.headers = {
             'Cache-Control': 'max-age=0',
-            'Last-Modified': '2012-02-22 12:03:54.681799',
+            'Last-Modified': 'Tue, 28 Feb 2012 15:50:14 GMT',
             }
         mock_get.return_value = response
 
@@ -399,9 +399,9 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/path', allow_redirects=False)
 
-        client.get('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
+        client.get('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'})
         self.assertEqual(mock_get.call_count, 3)
-        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'}, allow_redirects=False)
+        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'}, allow_redirects=False)
 
     def test_get_if_none_match_header(self, mock_get):
         response = Response()
@@ -422,7 +422,7 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
-        #        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2012-02-22 12:03:54.681799'})
+        #        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Tue, 28 Feb 2012 15:50:14 GMT'})
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"fdcd6016cf6059cbbf418d66a51a6b0a"'}, allow_redirects=False)
 
     def test_get_if_none_match_header_not_overridden(self, mock_get):
@@ -444,7 +444,7 @@ class TestClient(TestCase):
 
         client.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
         self.assertEqual(mock_get.call_count, 2)
-        #        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
+        #        mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'})
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'}, allow_redirects=False)
 
     def test_get_if_modified_since_header_no_cache(self, mock_get):

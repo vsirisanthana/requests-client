@@ -56,8 +56,7 @@ def get(url, **kwargs):
 
     # 2. Cache 2xx and 4xx --- DONE!!!
 
-    # 3. Send If-Modified-Since if response has Last-Modified
-    #   3.1 Change Last-Modified format
+    # 3. Send If-Modified-Since if response has Last-Modified --- DONE!!!
 
     # 4. Send If-None-Match if response has ETag --- DONE!!!
 
