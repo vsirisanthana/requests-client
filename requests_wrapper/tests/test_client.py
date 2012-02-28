@@ -166,16 +166,104 @@ class TestClient(TestCase):
         client.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 3)
 
-#    def test_get_cache_4xx(self, mock_get):
-#        response = Response()
-#        response.status_code = 400
-#        response._content = 'Mocked response content'
-#        response.headers = {
-#            'Cache-Control': 'max-age=10',
-#        }
-#        mock_get.return_value = response
-#
-#        client.get('http://www.test.com/path')
-#        self.assertEqual(mock_get.call_count, 1)
-#        client.get('http://www.test.com/path')
-#        self.assertEqual(mock_get.call_count, 1)
+    def test_get_cache_201(self, mock_get):
+        response = Response()
+        response.status_code = 201
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=10',
+        }
+        mock_get.return_value = response
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 201)
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 201)
+
+    def test_get_cache_204(self, mock_get):
+        response = Response()
+        response.status_code = 204
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=10',
+        }
+        mock_get.return_value = response
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 204)
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 204)
+
+    def test_get_cache_400(self, mock_get):
+        response = Response()
+        response.status_code = 400
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=10',
+        }
+        mock_get.return_value = response
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 400)
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 400)
+
+    def test_get_cache_401(self, mock_get):
+        response = Response()
+        response.status_code = 401
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=10',
+        }
+        mock_get.return_value = response
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 401)
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 401)
+
+    def test_get_cache_403(self, mock_get):
+        response = Response()
+        response.status_code = 403
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=10',
+        }
+        mock_get.return_value = response
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 403)
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 403)
+
+    def test_get_cache_404(self, mock_get):
+        response = Response()
+        response.status_code = 404
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=10',
+        }
+        mock_get.return_value = response
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 404)
+
+        response = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.status_code, 404)
