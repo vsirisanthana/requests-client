@@ -66,6 +66,12 @@ def get(url, **kwargs):
 
     # 4. Send If-None-Match if response has ETag --- DONE!!!
 
+    # 5. Handle 304
+
+    # 6. Try parellel requests
+
+    # 7. Try HTTPS
+
     #Update cache if cache-control is not no-cache
     cache_control = response.headers.get('Cache-Control')
     if cache_control is not None and 'no-cache' not in cache_control:
