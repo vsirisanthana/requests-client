@@ -36,12 +36,23 @@ class CacheManager(CacheMiddleware):
                     if response.has_header('ETag'):
                         request.META['HTTP_IF_NONE_MATCH'] = response['ETag']
 
+    def process_304_response(self, request, response):
+        cache_key = get_cache_key(request, CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX+self.key_prefix, 'GET', cache=self.cache)
+        if cache_key is None:
+            return None
+        cached_response = self.cache.get(cache_key, None)
+        if cached_response is None:
+            return None
+        else:
+            response._content = cached_response.content
+            return response
+
     def process_response(self, request, response):
         """Sets the cache, if needed."""
         if not self._should_update_cache(request, response):
             # We don't need to update the cache, just return.
             return response
-        if response.status_code/100 != 2 and response.status_code/100 != 4:
+        if response.status_code/100 != 2 and response.status_code/100 != 4 and response.status_code != 304:
             return response
             # Try to get the timeout from the "max-age" section of the "Cache-
         # Control" header before reverting to using the default cache_timeout

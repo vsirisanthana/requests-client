@@ -69,7 +69,7 @@ def get(url, **kwargs):
 
     # 4. Send If-None-Match if response has ETag --- DONE!!!
 
-    # 5. Handle 304
+    # 5. Handle 304 --- DONE!!!
 
     # 6. Try parellel requests
 
@@ -77,6 +77,14 @@ def get(url, **kwargs):
 
     # 8. Handle simple cookie :)
 
+    # Handle 304
+    if response.status_code == 304:
+        response = cache_manager.process_304_response(http_request, response)
+        if response is None:
+            if kwargs.has_key('If-Modified-Since'): kwargs['If-Modified-Since']
+            if kwargs.has_key('If-None-Match'): del kwargs['If-None-Match']
+            response = requests.get(url, **kwargs)
+    
     #handle cookie
     if response.cookies:
         cookies = cache.get('cookies') or dict()
