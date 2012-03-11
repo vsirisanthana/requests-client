@@ -17,13 +17,13 @@ def get(url, **kwargs):
         if redirect_to is None:
             break
         url = redirect_to
-
+    cookies = cache.get('cookies')
     # Construct Django HttpRequest object
     http_request = HttpRequest()
     http_request.path = url
     http_request.method = 'GET'
     http_request.META = {}
-
+    http_request.COOKIES = cookies or dict()
     # HttpRequest.META in Django prefixes each header with HTTP_
     if kwargs.has_key('headers'):
         for key, value in kwargs['headers'].items():
@@ -46,6 +46,9 @@ def get(url, **kwargs):
                 key = key.replace('HTTP_', '').replace('_', '-').title()
                 kwargs['headers'][key] = value
 
+    # set cookie
+    if cookies:
+        kwargs['cookies'] = cookies
     response = requests.get(url, **kwargs)
 
     if response.history:
@@ -71,6 +74,14 @@ def get(url, **kwargs):
     # 6. Try parellel requests
 
     # 7. Try HTTPS
+
+    # 8. Handle simple cookie :)
+
+    #handle cookie
+    if response.cookies:
+        cookies = cache.get('cookies') or dict()
+        cookies.update(response.cookies)
+        cache.set('cookies', cookies)
 
     #Update cache if cache-control is not no-cache
     cache_control = response.headers.get('Cache-Control')

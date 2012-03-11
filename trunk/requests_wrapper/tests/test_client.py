@@ -4,6 +4,7 @@ from django.core.cache import cache
 from django.test import TestCase
 from mock import patch
 from requests.models import Response
+from requests.utils import dict_from_string
 
 from requests_wrapper import client
 
@@ -582,3 +583,34 @@ class TestClient(TestCase):
         client.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
         self.assertEqual(mock_get.call_count, 3)
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
+
+
+
+    def test_cookie(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'set-cookie': 'name=value;, name2=value2;max-age=20'
+        }
+        response.cookies = dict_from_string(response.headers['set-cookie'])
+
+
+        mock_get.return_value = response
+
+        response = client.get('http://www.test.com/cookie')
+        mock_get.assert_called_with('http://www.test.com/cookie')
+        self.assertIn('name', response.cookies.keys())
+        cookies = cache.get('cookies')
+        self.assertTrue(cookies.has_key('name'))
+        self.assertEqual(cookies['name'], 'value')
+        self.assertTrue(cookies.has_key('name'))
+        self.assertEqual(cookies['name2'], 'value2')
+
+        #all later call must send cookies in header
+        response = client.get('http://www.test.com/some_other_path/')
+        mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name': 'value'})
+
+        response = client.get('http://www.test.com/some_other_path2/')
+        mock_get.assert_called_with('http://www.test.com/some_other_path2/', cookies={'name2': 'value2', 'name': 'value'})
+
