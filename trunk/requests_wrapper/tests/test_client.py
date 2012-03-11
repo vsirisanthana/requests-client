@@ -584,7 +584,85 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 3)
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
 
+    def test_get_304(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=1',
+            'ETag': '"fdcd6016cf6059cbbf418d66a51a6b0a"',
+            }
+        mock_get.return_value = response
 
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+
+        sleep(1)
+
+        response.status_code = 304
+        response._content = ''
+        response.headers = {
+            'Cache-Control': 'max-age=2',
+        }
+
+        r = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(r.status_code, 304)
+        self.assertEqual(r.content, 'Mocked response content')
+        self.assertEqual(r.headers['Cache-Control'], 'max-age=2')
+
+        r = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(r.status_code, 304)
+        self.assertEqual(r.content, 'Mocked response content')
+
+        sleep(2)
+
+        r = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 3)
+        self.assertEqual(r.status_code, 304)
+        self.assertEqual(r.content, 'Mocked response content')
+        self.assertEqual(r.headers['Cache-Control'], 'max-age=2')
+
+    def test_get_304_cache_not_exist(self, mock_get):
+        response0 = Response()
+        response0.status_code = 200
+        response0._content = 'Mocked response content X'
+        response0.headers = {
+            'Cache-Control': 'max-age=10',
+            'ETag': '"fdcd6016cf6059cbbf418d66a51a6b0a"',
+            }
+
+        response1 = Response()
+        response1.status_code = 304
+        response1._content = ''
+        response1.headers = {
+            'Cache-Control': 'max-age=10',
+            }
+
+        response2 = Response()
+        response2.status_code = 200
+        response2._content = 'Mocked response content Y'
+        response2.headers = {
+            'Cache-Control': 'max-age=10',
+            'ETag': '"a0b6a15a66d814fbbc9506fc6106dcdf"',
+            }
+
+        mock_get.side_effect = [response0, response1, response2]
+
+        r = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(r.content, 'Mocked response content X')
+
+        cache.clear()
+
+        r = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 3)
+        self.assertEqual(r.content, 'Mocked response content Y')
+
+        r = client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 3)
+        self.assertEqual(r.content, 'Mocked response content Y')
 
     def test_cookie(self, mock_get):
         response = Response()
@@ -613,4 +691,3 @@ class TestClient(TestCase):
 
         response = client.get('http://www.test.com/some_other_path2/')
         mock_get.assert_called_with('http://www.test.com/some_other_path2/', cookies={'name2': 'value2', 'name': 'value'})
-
