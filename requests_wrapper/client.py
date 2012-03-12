@@ -6,7 +6,10 @@ from django.http import HttpRequest, HttpResponse
 from requests_wrapper.cache import CacheManager
 
 
-def get(url, **kwargs):
+CACHE_MANAGER = CacheManager()      # A singleton cache manager
+
+
+def get(url, queue=None, **kwargs):
 
     # check if the url is permanently redirect or not
     history = []
@@ -29,13 +32,13 @@ def get(url, **kwargs):
         for key, value in kwargs['headers'].items():
             http_request.META['HTTP_'+key.upper().replace('-', '_')] = value
 
-    cache_manager = CacheManager()
-    response = cache_manager.process_request(http_request)
+    response = CACHE_MANAGER.process_request(http_request)
     if response:
+        if queue: queue.put(response)
         return response
 
-    cache_manager.patch_if_modified_since_header(http_request)
-    cache_manager.patch_if_none_match_header(http_request)
+    CACHE_MANAGER.patch_if_modified_since_header(http_request)
+    CACHE_MANAGER.patch_if_none_match_header(http_request)
 
     # Copy HttpRequest headers back
     if http_request.META.items():
@@ -71,7 +74,7 @@ def get(url, **kwargs):
 
     # 5. Handle 304 --- DONE!!!
 
-    # 6. Try parellel requests
+    # 6. Try parellel requests --- DONE!!! (Support GET only)
 
     # 7. Try HTTPS
 
@@ -79,7 +82,7 @@ def get(url, **kwargs):
 
     # Handle 304
     if response.status_code == 304:
-        response = cache_manager.process_304_response(http_request, response)
+        response = CACHE_MANAGER.process_304_response(http_request, response)
         if response is None:
             if kwargs.has_key('If-Modified-Since'): kwargs['If-Modified-Since']
             if kwargs.has_key('If-None-Match'): del kwargs['If-None-Match']
@@ -99,5 +102,7 @@ def get(url, **kwargs):
         for header in response.headers:
             http_response[header] = response.headers[header]
 
-        cache_manager.process_response(http_request, http_response)
+        CACHE_MANAGER.process_response(http_request, http_response)
+
+    if queue: queue.put(response)
     return response
