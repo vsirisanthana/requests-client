@@ -23,7 +23,9 @@ def get(url, queue=None, **kwargs):
         url = redirect_to
     url_obj = urlparse(url)
     cookies = cache.get('cookies')
-    domain_cookie = cookies.get(url_obj.netloc) if cookies else None
+    domain_cookie = None
+    if cookies:
+        domain_cookie = cookies.get(url_obj.netloc)
 
     # Construct Django HttpRequest object
     http_request = HttpRequest()
@@ -96,7 +98,7 @@ def get(url, queue=None, **kwargs):
     
     #handle cookie
     if response.cookies:
-        cookies = cache.get('cookie') or {}
+        cookies = cookies or dict()
         domain = url_obj.netloc
         if not domain in cookies.keys():
             cookies[domain] = {}

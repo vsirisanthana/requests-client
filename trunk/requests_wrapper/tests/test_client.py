@@ -669,7 +669,7 @@ class TestClient(TestCase):
         response0.status_code = 200
         response0._content = 'Mocked response content'
         response0.headers = {
-            'set-cookie': 'name=value;, name2=value2;max-age=20'
+            'set-cookie': 'name=value; domain=www.test.com, name2=value2;max-age=20'
         }
         response0.cookies = dict_from_string(response0.headers['set-cookie'])
 
@@ -677,7 +677,15 @@ class TestClient(TestCase):
         response1.status_code = 200
         response1._content = 'Mocked response content'
 
-        mock_get.side_effect = [response0, response0, response0, response1]
+        response2 = Response()
+        response2.status_code = 200
+        response2._content = 'Mocked response content'
+        response2.headers = {
+            'set-cookie': 'other_name=value; domain=www.othertest.com, other_name2=value2;max-age=20'
+        }
+        response2.cookies = dict_from_string(response0.headers['set-cookie'])
+
+        mock_get.side_effect = [response0, response0, response0, response1, response2, response2]
 
         response = client.get('http://www.test.com/cookie')
         mock_get.assert_called_with('http://www.test.com/cookie')
@@ -687,7 +695,7 @@ class TestClient(TestCase):
         domain_cookie = cookies['www.test.com']
         self.assertTrue(domain_cookie.has_key('name'))
         self.assertEqual(domain_cookie['name'].value, 'value')
-        self.assertTrue(domain_cookie.has_key('name'))
+        self.assertTrue(domain_cookie.has_key('name2'))
         self.assertEqual(domain_cookie['name2'].value, 'value2')
 
         #all later calls of same domain must send cookies in header
@@ -700,5 +708,21 @@ class TestClient(TestCase):
         # other domain get no cookies
         response = client.get('http://www.other_domain.com/some_other_path2/')
         mock_get.assert_called_with('http://www.other_domain.com/some_other_path2/')
+
+        # other domain get their cookies
+        response = client.get('http://www.othertest.com/')
+        cookies = cache.get('cookies')
+        self.assertTrue(cookies.has_key('www.othertest.com'))
+        domain_cookie = cookies['www.othertest.com']
+        self.assertTrue(domain_cookie.has_key('other_name'))
+        self.assertEqual(domain_cookie['other_name'].value, 'value')
+        self.assertTrue(domain_cookie.has_key('other_name2'))
+        self.assertEqual(domain_cookie['other_name2'].value, 'value2')
+
+        response = client.get('http://www.othertest.com/some_other_path2/')
+        mock_get.assert_called_with('http://www.othertest.com/some_other_path2/', cookies={'other_name2': 'value2', 'other_name': 'value'})
+        print 'cookies', cache.get('cookies')
+
+
 
 
