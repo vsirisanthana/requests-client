@@ -1,7 +1,8 @@
+from urlparse import urlparse
 import requests
 from requests import *
 from django.core.cache import cache
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, SimpleCookie
 
 from requests_wrapper.cache import CacheManager
 
@@ -20,13 +21,16 @@ def get(url, queue=None, **kwargs):
         if redirect_to is None:
             break
         url = redirect_to
+    url_obj = urlparse(url)
     cookies = cache.get('cookies')
+    domain_cookie = cookies.get(url_obj.netloc) if cookies else None
+
     # Construct Django HttpRequest object
     http_request = HttpRequest()
     http_request.path = url
     http_request.method = 'GET'
     http_request.META = {}
-    http_request.COOKIES = cookies or dict()
+    http_request.COOKIES = domain_cookie or dict()
     # HttpRequest.META in Django prefixes each header with HTTP_
     if kwargs.has_key('headers'):
         for key, value in kwargs['headers'].items():
@@ -50,10 +54,12 @@ def get(url, queue=None, **kwargs):
                 kwargs['headers'][key] = value
 
     # set cookie
-    if cookies:
-        kwargs['cookies'] = cookies
+    if domain_cookie:
+        set_cookie = {}
+        for k, v in domain_cookie.items():
+            set_cookie.update({k:v.value})
+        kwargs['cookies'] = set_cookie
     response = requests.get(url, **kwargs)
-
     if response.history:
         http_request.path = response.url
 
@@ -90,8 +96,15 @@ def get(url, queue=None, **kwargs):
     
     #handle cookie
     if response.cookies:
-        cookies = cache.get('cookies') or dict()
-        cookies.update(response.cookies)
+        cookies = cache.get('cookie') or {}
+        domain = url_obj.netloc
+        if not domain in cookies.keys():
+            cookies[domain] = {}
+
+        domain_cookies = cookies[domain]
+        cookie = SimpleCookie()
+        cookie.load(response.headers['set-cookie'])
+        domain_cookies.update(cookie)
         cache.set('cookies', cookies)
 
     #Update cache if cache-control is not no-cache
