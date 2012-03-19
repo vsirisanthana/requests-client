@@ -28,3 +28,4 @@ def extract_cookie(url, response):
         cookie.load(response.headers['set-cookie'])
         domain_cookies.update(cookie)
         cache.set('cookies', cookies)
+

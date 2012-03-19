@@ -728,3 +728,11 @@ class TestClient(TestCase):
 
 
 
+    def test_expired_cookie(self, mock_get):
+
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'set-cookie': 'other_name=value; Expires=Tue, 15 Jan 2013 21:47:38 GMT; domain=www.othertest.com, other_name2=value2;max-age=20'
+        }
