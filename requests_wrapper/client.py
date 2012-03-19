@@ -1,10 +1,10 @@
-from urlparse import urlparse
 import requests
 from requests import *
 from django.core.cache import cache
-from django.http import HttpRequest, HttpResponse, SimpleCookie
+from django.http import HttpRequest, HttpResponse
 
 from requests_wrapper.cache import CacheManager
+from requests_wrapper.cookie import extract_cookie, get_domain_cookie
 
 
 CACHE_MANAGER = CacheManager()      # A singleton cache manager
@@ -21,18 +21,14 @@ def get(url, queue=None, **kwargs):
         if redirect_to is None:
             break
         url = redirect_to
-    url_obj = urlparse(url)
-    cookies = cache.get('cookies')
-    domain_cookie = None
-    if cookies:
-        domain_cookie = cookies.get(url_obj.netloc)
 
     # Construct Django HttpRequest object
     http_request = HttpRequest()
     http_request.path = url
     http_request.method = 'GET'
     http_request.META = {}
-    http_request.COOKIES = domain_cookie or dict()
+    http_request.COOKIES = get_domain_cookie(url) or dict()
+
     # HttpRequest.META in Django prefixes each header with HTTP_
     if kwargs.has_key('headers'):
         for key, value in kwargs['headers'].items():
@@ -56,11 +52,8 @@ def get(url, queue=None, **kwargs):
                 kwargs['headers'][key] = value
 
     # set cookie
-    if domain_cookie:
-        set_cookie = {}
-        for k, v in domain_cookie.items():
-            set_cookie.update({k:v.value})
-        kwargs['cookies'] = set_cookie
+    if get_domain_cookie(url):
+        kwargs['cookies'] = get_domain_cookie(url)
     response = requests.get(url, **kwargs)
     if response.history:
         http_request.path = response.url
@@ -86,7 +79,7 @@ def get(url, queue=None, **kwargs):
 
     # 7. Try HTTPS
 
-    # 8. Handle simple cookie :)
+    # 8. Handle simple domain cookie :) --- DONE!!
 
     # Handle 304
     if response.status_code == 304:
@@ -97,17 +90,7 @@ def get(url, queue=None, **kwargs):
             response = requests.get(url, **kwargs)
     
     #handle cookie
-    if response.cookies:
-        cookies = cookies or dict()
-        domain = url_obj.netloc
-        if not domain in cookies.keys():
-            cookies[domain] = {}
-
-        domain_cookies = cookies[domain]
-        cookie = SimpleCookie()
-        cookie.load(response.headers['set-cookie'])
-        domain_cookies.update(cookie)
-        cache.set('cookies', cookies)
+    extract_cookie(url, response)
 
     #Update cache if cache-control is not no-cache
     cache_control = response.headers.get('Cache-Control')

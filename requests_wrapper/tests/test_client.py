@@ -685,7 +685,7 @@ class TestClient(TestCase):
         }
         response2.cookies = dict_from_string(response0.headers['set-cookie'])
 
-        mock_get.side_effect = [response0, response0, response0, response1, response2, response2]
+        mock_get.side_effect = [response0, response0, response0, response1, response2, response2, response0]
 
         response = client.get('http://www.test.com/cookie')
         mock_get.assert_called_with('http://www.test.com/cookie')
@@ -721,8 +721,10 @@ class TestClient(TestCase):
 
         response = client.get('http://www.othertest.com/some_other_path2/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path2/', cookies={'other_name2': 'value2', 'other_name': 'value'})
-        print 'cookies', cache.get('cookies')
 
+        #call first one again, make sure we still send cookie
+        response = client.get('http://www.test.com/some_other_path/')
+        mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name': 'value'})
 
 
 
