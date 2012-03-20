@@ -1,12 +1,12 @@
 from time import sleep
+from unittest import TestCase
 
-from django.core.cache import cache
-from django.test import TestCase
 from mock import patch
 from requests.models import Response
 from requests.utils import dict_from_string
 
 from requests_wrapper import client
+from requests_wrapper.default_cache import cache
 
 
 @patch('requests.get')
@@ -14,6 +14,7 @@ class TestClient(TestCase):
 
     def setUp(self):
         cache.clear()
+#        django_cache.clear()
 
     def test_get_max_age(self, mock_get):
         response = Response()
@@ -585,25 +586,26 @@ class TestClient(TestCase):
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
 
     def test_get_304(self, mock_get):
-        response = Response()
-        response.status_code = 200
-        response._content = 'Mocked response content'
-        response.headers = {
+        response0 = Response()
+        response0.status_code = 200
+        response0._content = 'Mocked response content'
+        response0.headers = {
             'Cache-Control': 'max-age=1',
             'ETag': '"fdcd6016cf6059cbbf418d66a51a6b0a"',
             }
-        mock_get.return_value = response
+
+        response1 = Response()
+        response1.status_code = 304
+        response1._content = ''
+        response1.headers = {
+            'Cache-Control': 'max-age=2',
+        }
+        mock_get.side_effect = [response0, response1, response1, response1]
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
 
         sleep(1)
-
-        response.status_code = 304
-        response._content = ''
-        response.headers = {
-            'Cache-Control': 'max-age=2',
-        }
 
         r = client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
@@ -725,6 +727,3 @@ class TestClient(TestCase):
         #call first one again, make sure we still send cookie
         response = client.get('http://www.test.com/some_other_path/')
         mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name': 'value'})
-
-
-

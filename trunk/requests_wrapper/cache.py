@@ -1,12 +1,44 @@
-from django.middleware.cache import CacheMiddleware
-from django.utils.cache import get_cache_key, learn_cache_key, patch_response_headers, get_max_age
+from dogutils.cache import get_cache_key, learn_cache_key, get_max_age
 
 
 CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX = 'longterm'
 CACHE_MANAGER_LONG_TERM_CACHE_SECONDS = 60 * 60 * 24 * 30
 
 
-class CacheManager(CacheMiddleware):
+class CacheManager(object):
+
+    def __init__(self, key_prefix, cache, cache_anonymous_only=False):
+        self.key_prefix = key_prefix
+        self.cache = cache
+        self.cache_anonymous_only = cache_anonymous_only
+
+    def process_request(self, request):
+        """
+        Checks whether the page is already cached and returns the cached
+        version if available.
+        """
+        if not request.method in ('GET', 'HEAD'):
+            request._cache_update_cache = False
+            return None # Don't bother checking the cache.
+
+        # try and get the cached GET response
+        cache_key = get_cache_key(request, self.key_prefix, 'GET', cache=self.cache)
+        if cache_key is None:
+            request._cache_update_cache = True
+            return None # No cache information available, need to rebuild.
+        response = self.cache.get(cache_key, None)
+        # if it wasn't found and we are looking for a HEAD, try looking just for that
+        if response is None and request.method == 'HEAD':
+            cache_key = get_cache_key(request, self.key_prefix, 'HEAD', cache=self.cache)
+            response = self.cache.get(cache_key, None)
+
+        if response is None:
+            request._cache_update_cache = True
+            return None # No cache information available, need to rebuild.
+
+        # hit, return cached response
+        request._cache_update_cache = False
+        return response
 
     def patch_if_modified_since_header(self, request):
         """
@@ -14,13 +46,13 @@ class CacheManager(CacheMiddleware):
         1. request does not have 'If-Modified-Since' already, and
         2. Previous response has 'Last-Modified' header.
         """
-        if 'HTTP_IF_MODIFIED_SINCE' not in request.META:
+        if 'If-Modified-Since' not in request.headers:
             cache_key = get_cache_key(request, CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX+self.key_prefix, 'GET', cache=self.cache)
             if cache_key is not None:
                 response = self.cache.get(cache_key, None)
                 if response is not None:
                     if response.has_header('Last-Modified'):
-                        request.META['HTTP_IF_MODIFIED_SINCE'] = response['Last-Modified']
+                        request.headers['If-Modified-Since'] = response['Last-Modified']
 
     def patch_if_none_match_header(self, request):
         """
@@ -28,13 +60,13 @@ class CacheManager(CacheMiddleware):
         1. request does not have 'If-None-Match' already, and
         2. Previous response has 'ETag' header.
         """
-        if 'HTTP_IF_NONE_MATCH' not in request.META:
+        if 'If-None-Match' not in request.headers:
             cache_key = get_cache_key(request, CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX+self.key_prefix, 'GET', cache=self.cache)
             if cache_key is not None:
                 response = self.cache.get(cache_key, None)
                 if response is not None:
                     if response.has_header('ETag'):
-                        request.META['HTTP_IF_NONE_MATCH'] = response['ETag']
+                        request.headers['If-None-Match'] = response['ETag']
 
     def process_304_response(self, request, response):
         cache_key = get_cache_key(request, CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX+self.key_prefix, 'GET', cache=self.cache)
@@ -46,6 +78,19 @@ class CacheManager(CacheMiddleware):
         else:
             response._content = cached_response.content
             return response
+
+    def _should_update_cache(self, request, response):
+        if not hasattr(request, '_cache_update_cache') or not request._cache_update_cache:
+            return False
+            # If the session has not been accessed otherwise, we don't want to
+        # cause it to be accessed here. If it hasn't been accessed, then the
+        # user's logged-in status has not affected the response anyway.
+        if self.cache_anonymous_only and self._session_accessed(request):
+            assert hasattr(request, 'user'), "The Django cache middleware with CACHE_MIDDLEWARE_ANONYMOUS_ONLY=True requires authentication middleware to be installed. Edit your MIDDLEWARE_CLASSES setting to insert 'django.contrib.auth.middleware.AuthenticationMiddleware' before the CacheMiddleware."
+            if request.user.is_authenticated():
+                # Don't cache user-variable requests from authenticated users.
+                return False
+        return True
 
     def process_response(self, request, response):
         """Sets the cache, if needed."""

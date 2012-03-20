@@ -1,13 +1,41 @@
 import requests
 from requests import *
-from django.core.cache import cache
-from django.http import HttpRequest, HttpResponse
 
-from requests_wrapper.cache import CacheManager
-from requests_wrapper.cookie import extract_cookie, get_domain_cookie
+from cache import CacheManager
+from cookie import extract_cookie, get_domain_cookie
+from default_cache import cache
 
 
-CACHE_MANAGER = CacheManager()      # A singleton cache manager
+CACHE_MANAGER = CacheManager(key_prefix='dogbutler', cache=cache)      # A singleton cache manager
+
+
+class Request:
+
+    def __init__(self, url, method='GET', **kwargs):
+        self.path = url
+        self.method = method
+        self.headers = kwargs.get('headers', {})
+
+    def get_full_path(self):
+        return self.path
+
+
+DEFAULT_CONTENT_TYPE = 'text/html'
+
+class Response(requests.Response):
+
+    def __init__(self, content='', status=200, content_type=DEFAULT_CONTENT_TYPE):
+        self.content = content
+        self.status_code = status
+        self.headers = {}
+
+
+def has_header(self, header):
+    return header in self.headers
+
+
+requests.Response.has_header = lambda self, header: header in self.headers
+requests.Response.__getitem__ = lambda self, header: self.headers[header]
 
 
 def get(url, queue=None, **kwargs):
@@ -22,20 +50,19 @@ def get(url, queue=None, **kwargs):
             break
         url = redirect_to
 
-    # Construct Django HttpRequest object
-    http_request = HttpRequest()
-    http_request.path = url
-    http_request.method = 'GET'
-    http_request.META = {}
+    http_request = Request(url, method='GET', **kwargs)
+#    http_request.path = url
+#    http_request.method = 'GET'
+#    http_request.META = {}
     http_request.COOKIES = get_domain_cookie(url) or dict()
 
     # HttpRequest.META in Django prefixes each header with HTTP_
-    if kwargs.has_key('headers'):
-        for key, value in kwargs['headers'].items():
-            http_request.META['HTTP_'+key.upper().replace('-', '_')] = value
+#    if kwargs.has_key('headers'):
+#        for key, value in kwargs['headers'].items():
+#            http_request.META['HTTP_'+key.upper().replace('-', '_')] = value
 
     response = CACHE_MANAGER.process_request(http_request)
-    if response:
+    if response is not None:
         if queue: queue.put(response)
         return response
 
@@ -43,13 +70,15 @@ def get(url, queue=None, **kwargs):
     CACHE_MANAGER.patch_if_none_match_header(http_request)
 
     # Copy HttpRequest headers back
-    if http_request.META.items():
-        if not kwargs.has_key('headers'):
-            kwargs['headers'] = {}
-        for key, value in http_request.META.items():
-            if key.startswith('HTTP_') or key in ['CONTENT_LENGTH', 'CONTENT_TYPE']:
-                key = key.replace('HTTP_', '').replace('_', '-').title()
-                kwargs['headers'][key] = value
+#    if http_request.META.items():
+#        if not kwargs.has_key('headers'):
+#            kwargs['headers'] = {}
+#        for key, value in http_request.META.items():
+#            if key.startswith('HTTP_') or key in ['CONTENT_LENGTH', 'CONTENT_TYPE']:
+#                key = key.replace('HTTP_', '').replace('_', '-').title()
+#                kwargs['headers'][key] = value
+
+    if http_request.headers: kwargs['headers'] = http_request.headers
 
     # set cookie
     if get_domain_cookie(url):
@@ -96,11 +125,13 @@ def get(url, queue=None, **kwargs):
     cache_control = response.headers.get('Cache-Control')
     if cache_control is not None and 'no-cache' not in cache_control:
 
-        http_response = HttpResponse(response.content, status=response.status_code, content_type=response.headers.get('Content-Type', 'text/html'))
-        for header in response.headers:
-            http_response[header] = response.headers[header]
+#        http_response = HttpResponse(response.content, status=response.status_code, content_type=response.headers.get('Content-Type', 'text/html'))
+#        for header in response.headers:
+#            http_response[header] = response.headers[header]
 
-        CACHE_MANAGER.process_response(http_request, http_response)
+#        CACHE_MANAGER.process_response(http_request, http_response)
+
+        CACHE_MANAGER.process_response(http_request, response)
 
     if queue: queue.put(response)
     return response
