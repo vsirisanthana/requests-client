@@ -40,8 +40,6 @@ def get_max_age(response):
         except (ValueError, TypeError):
             pass
 
-
-
 #def _i18n_cache_key_suffix(request, cache_key):
 #    """If enabled, returns the cache key ending with a locale."""
 #    if settings.USE_I18N:

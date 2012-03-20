@@ -82,7 +82,7 @@ class CacheManager(object):
     def _should_update_cache(self, request, response):
         if not hasattr(request, '_cache_update_cache') or not request._cache_update_cache:
             return False
-            # If the session has not been accessed otherwise, we don't want to
+        # If the session has not been accessed otherwise, we don't want to
         # cause it to be accessed here. If it hasn't been accessed, then the
         # user's logged-in status has not affected the response anyway.
         if self.cache_anonymous_only and self._session_accessed(request):
@@ -99,7 +99,7 @@ class CacheManager(object):
             return response
         if response.status_code/100 != 2 and response.status_code/100 != 4 and response.status_code != 304:
             return response
-            # Try to get the timeout from the "max-age" section of the "Cache-
+        # Try to get the timeout from the "max-age" section of the "Cache-
         # Control" header before reverting to using the default cache_timeout
         # length.
         timeout = get_max_age(response)
