@@ -1,11 +1,11 @@
 from time import sleep
+from unittest import TestCase
 
-from django.core.cache import cache
-from django.test import TestCase
 from mock import patch
 from requests.models import Response
 
 from requests_wrapper import async
+from requests_wrapper.default_cache import cache
 
 
 @patch('requests.get')

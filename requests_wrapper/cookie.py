@@ -1,6 +1,7 @@
 from urlparse import urlparse
-from django.core.cache import cache
-from django.http import SimpleCookie
+from Cookie import SimpleCookie
+
+from default_cache import cache
 
 
 def get_domain_cookie(url):

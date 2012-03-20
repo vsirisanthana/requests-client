@@ -1,4 +1,4 @@
-django
-django-nose
+dummycache
 mock
+nose
 requests
