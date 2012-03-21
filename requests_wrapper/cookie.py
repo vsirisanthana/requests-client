@@ -53,12 +53,12 @@ def extract_cookie(url, response):
                 fmt = '%a, %d-%b-%Y %H:%M:%S GMT'
                 expired  = datetime.strptime(c['expires'], fmt)
                 now = datetime.utcnow()
-                maxage = (expired - now).seconds
+                maxage = (expired - now).total_seconds()
 
             if c['max-age']:
 #                c['expires'] = _getdate(future=int(c['max-age']))
                 maxage = int(c['max-age'])
-            if maxage:
+            if maxage is not None:
                 cache.set(cookiename, c, maxage)
             else:
                 cache.set(cookiename, c)
