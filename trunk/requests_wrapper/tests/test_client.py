@@ -1,20 +1,28 @@
-from time import sleep
+from datetime import datetime, timedelta
 from unittest import TestCase
 
 from mock import patch
 from requests.models import Response
 from requests.utils import dict_from_string
+from dummycache import cache as dummycache_cache
 
 from requests_wrapper import client
 from requests_wrapper.default_cache import cache
+from requests_wrapper.tests.datetimestub import DatetimeStub
 
 
 @patch('requests.get')
 class TestClient(TestCase):
 
     def setUp(self):
+        super(TestClient, self).setUp()
+        dummycache_cache.datetime = DatetimeStub()
         cache.clear()
-#        django_cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+        dummycache_cache.datetime = datetime
+        super(TestClient, self).tearDown()
 
     def test_get_max_age(self, mock_get):
         response = Response()
@@ -30,7 +38,8 @@ class TestClient(TestCase):
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
 
-        sleep(1)
+        # Move time forward 1 second
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
@@ -475,7 +484,8 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
-        sleep(1)
+        # Move time forward 1 second
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
@@ -495,7 +505,8 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
-        sleep(1)
+        # Move time forward 1 second
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
         client.get('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
         self.assertEqual(mock_get.call_count, 2)
@@ -537,7 +548,8 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
-        sleep(1)
+        # Move time forward 1 second
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
@@ -557,7 +569,8 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
-        sleep(1)
+        # Move time forward 1 second
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
         client.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
         self.assertEqual(mock_get.call_count, 2)
@@ -592,7 +605,7 @@ class TestClient(TestCase):
         response0.headers = {
             'Cache-Control': 'max-age=1',
             'ETag': '"fdcd6016cf6059cbbf418d66a51a6b0a"',
-            }
+        }
 
         response1 = Response()
         response1.status_code = 304
@@ -605,7 +618,8 @@ class TestClient(TestCase):
         client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
 
-        sleep(1)
+        # Move time forward 1 second
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
         r = client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
@@ -618,7 +632,8 @@ class TestClient(TestCase):
         self.assertEqual(r.status_code, 304)
         self.assertEqual(r.content, 'Mocked response content')
 
-        sleep(2)
+        # Move time forward 3 seconds (1 + 2)
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=3)
 
         r = client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)

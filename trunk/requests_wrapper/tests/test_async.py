@@ -1,18 +1,27 @@
-from time import sleep
+from datetime import datetime, timedelta
 from unittest import TestCase
 
 from mock import patch
 from requests.models import Response
+from dummycache import cache as dummycache_cache
 
 from requests_wrapper import async
 from requests_wrapper.default_cache import cache
+from requests_wrapper.tests.datetimestub import DatetimeStub
 
 
 @patch('requests.get')
 class TestClient(TestCase):
 
     def setUp(self):
+        super(TestClient, self).setUp()
+        dummycache_cache.datetime = DatetimeStub()
         cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+        dummycache_cache.datetime = datetime
+        super(TestClient, self).tearDown()
 
     def test_get(self, mock_get):
         # Setup mock
@@ -73,7 +82,8 @@ class TestClient(TestCase):
         self.assertEqual(responses[2].status_code, 403)
         self.assertEqual(responses[2].content, 'Mocked response content Z')
 
-        sleep(1)
+        # Move time forward 1 second
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
         # Make sure the If-None-Match still works
         responses = async.get(requests[:1])
