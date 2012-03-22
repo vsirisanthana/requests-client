@@ -714,13 +714,10 @@ class TestClient(TestCase):
 
         # other domain get their cookies
         response = client.get('http://www.othertest.com/')
-#        cookies = cache.get('cookies')
-#        self.assertTrue(cookies.has_key('www.othertest.com'))
-#        domain_cookie = cookies['www.othertest.com']
-#        self.assertTrue(domain_cookie.has_key('other_name'))
-#        self.assertEqual(domain_cookie['other_name'].value, 'value')
-#        self.assertTrue(domain_cookie.has_key('other_name2'))
-#        self.assertEqual(domain_cookie['other_name2'].value, 'value2')
+
+        self.assertIsNotNone(cache.get('www.othertest.com'))
+        self.assertIsNotNone(cache.get('www.othertest.com.other_name'))
+        self.assertIsNotNone(cache.get('www.othertest.com.other_name2'))
 
         response = client.get('http://www.othertest.com/some_other_path2/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path2/', cookies={'other_name2': 'value2', 'other_name': 'value'})
