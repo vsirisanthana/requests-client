@@ -1,3 +1,4 @@
+from Cookie import _getdate
 from datetime import datetime, timedelta
 from unittest import TestCase
 
@@ -702,25 +703,27 @@ class TestClient(TestCase):
         }
         response2.cookies = dict_from_string(response0.headers['set-cookie'])
 
-        mock_get.side_effect = [response0, response0, response0, response1, response2, response2, response0]
+        response3 = Response()
+        response3.status_code = 200
+        response3._content = 'Mocked response content'
+        response3.headers = {
+            'set-cookie': 'name3=value3; domain=www.test.com'
+        }
+        response3.cookies = dict_from_string(response0.headers['set-cookie'])
+
+        mock_get.side_effect = [response0, response3, response0, response1, response2, response2, response0]
 
         response = client.get('http://www.test.com/cookie')
         mock_get.assert_called_with('http://www.test.com/cookie')
         self.assertIn('name', response.cookies.keys())
-        cookies = cache.get('cookies')
-        self.assertTrue(cookies.has_key('www.test.com'))
-        domain_cookie = cookies['www.test.com']
-        self.assertTrue(domain_cookie.has_key('name'))
-        self.assertEqual(domain_cookie['name'].value, 'value')
-        self.assertTrue(domain_cookie.has_key('name2'))
-        self.assertEqual(domain_cookie['name2'].value, 'value2')
+        self.assertTrue(cache.get('www.test.com'))
 
         #all later calls of same domain must send cookies in header
         response = client.get('http://www.test.com/some_other_path/')
         mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name': 'value'})
 
         response = client.get('http://www.test.com/some_other_path2/')
-        mock_get.assert_called_with('http://www.test.com/some_other_path2/', cookies={'name2': 'value2', 'name': 'value'})
+        mock_get.assert_called_with('http://www.test.com/some_other_path2/', cookies={'name2': 'value2', 'name3': 'value3', 'name': 'value'})
 
         # other domain get no cookies
         response = client.get('http://www.other_domain.com/some_other_path2/')
@@ -728,17 +731,51 @@ class TestClient(TestCase):
 
         # other domain get their cookies
         response = client.get('http://www.othertest.com/')
-        cookies = cache.get('cookies')
-        self.assertTrue(cookies.has_key('www.othertest.com'))
-        domain_cookie = cookies['www.othertest.com']
-        self.assertTrue(domain_cookie.has_key('other_name'))
-        self.assertEqual(domain_cookie['other_name'].value, 'value')
-        self.assertTrue(domain_cookie.has_key('other_name2'))
-        self.assertEqual(domain_cookie['other_name2'].value, 'value2')
+
+        self.assertIsNotNone(cache.get('www.othertest.com'))
+        self.assertIsNotNone(cache.get('www.othertest.com.other_name'))
+        self.assertIsNotNone(cache.get('www.othertest.com.other_name2'))
 
         response = client.get('http://www.othertest.com/some_other_path2/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path2/', cookies={'other_name2': 'value2', 'other_name': 'value'})
 
         #call first one again, make sure we still send cookie
         response = client.get('http://www.test.com/some_other_path/')
-        mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name': 'value'})
+        mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name3': 'value3', 'name': 'value'})
+
+
+
+    def test_expired_cookie(self, mock_get):
+
+        expire_string = _getdate(future=3)
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'set-cookie': 'other_name=value; expires=%s; domain=www.othertest.com, other_name2=value2;max-age=6' % expire_string
+        }
+        response.cookies = dict_from_string(response.headers['set-cookie'])
+
+
+        mock_get.return_value = response
+        response = client.get('http://www.othertest.com/some_other_path2/')
+
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
+        response = client.get('http://www.othertest.com/some_other_path/')
+        mock_get.assert_called_with('http://www.othertest.com/some_other_path/', cookies={'other_name2': 'value2', 'other_name': 'value'})
+
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=4)
+        response = client.get('http://www.othertest.com/some_other_path/')
+        mock_get.assert_called_with('http://www.othertest.com/some_other_path/', cookies={'other_name2': 'value2'})
+
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=11)
+        response = client.get('http://www.othertest.com/some_other_path/')
+        mock_get.assert_called_with('http://www.othertest.com/some_other_path/')
+
+
+
+
+
+
+
+
