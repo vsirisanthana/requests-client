@@ -5,9 +5,10 @@ from mock import patch
 from requests.models import Response
 from dummycache import cache as dummycache_cache
 
-from requests_wrapper import async
-from requests_wrapper.default_cache import get_default_cache
-from requests_wrapper.tests.datetimestub import DatetimeStub
+from dogbutler import async
+
+from dogbutler.default_cache import get_default_cache
+from .datetimestub import DatetimeStub
 
 
 @patch('requests.get')

@@ -6,9 +6,9 @@ from requests.models import Response
 from requests.utils import dict_from_string
 from dummycache import cache as dummycache_cache
 
-from requests_wrapper.cookie import get_domain_cookie, extract_cookie
-from requests_wrapper.default_cache import get_default_cache
-from requests_wrapper.tests.datetimestub import DatetimeStub
+from dogbutler.cookie import get_domain_cookie, extract_cookie
+from dogbutler.default_cache import get_default_cache
+from dogbutler.tests.datetimestub import DatetimeStub
 
 
 class TestCookie(TestCase):

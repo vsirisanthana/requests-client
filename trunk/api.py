@@ -70,7 +70,7 @@ def get(url, queue=None, **kwargs):
             if kwargs.has_key('If-Modified-Since'): kwargs['If-Modified-Since']
             if kwargs.has_key('If-None-Match'): del kwargs['If-None-Match']
             response = requests.get(url, **kwargs)
-    
+
     #handle cookie
     extract_cookie(url, response)
 

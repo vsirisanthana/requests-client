@@ -1,7 +1,7 @@
 from Queue import Queue
 from threading import Thread
 
-import client
+import api
 
 
 DEFAULT_TIMEOUT = 60 * 5    # in seconds
@@ -23,7 +23,7 @@ def get(requests):
             'queue': q,
         })
 
-        t = Thread(target=client.get, kwargs=call_kwargs)
+        t = Thread(target=api.get, kwargs=call_kwargs)
         t.start()
         threads.append(t)
 
