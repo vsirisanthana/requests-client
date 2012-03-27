@@ -6,7 +6,7 @@ from requests.models import Response
 from dummycache import cache as dummycache_cache
 
 from requests_wrapper import async
-from requests_wrapper.default_cache import cache
+from requests_wrapper.default_cache import get_default_cache
 from requests_wrapper.tests.datetimestub import DatetimeStub
 
 
@@ -16,10 +16,11 @@ class TestClient(TestCase):
     def setUp(self):
         super(TestClient, self).setUp()
         dummycache_cache.datetime = DatetimeStub()
-        cache.clear()
+        self.cache = get_default_cache()
+        self.cache.clear()
 
     def tearDown(self):
-        cache.clear()
+        self.cache.clear()
         dummycache_cache.datetime = datetime
         super(TestClient, self).tearDown()
 

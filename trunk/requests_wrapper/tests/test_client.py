@@ -8,7 +8,7 @@ from requests.utils import dict_from_string
 from dummycache import cache as dummycache_cache
 
 from requests_wrapper import client
-from requests_wrapper.default_cache import cache
+from requests_wrapper.default_cache import get_default_cache
 from requests_wrapper.tests.datetimestub import DatetimeStub
 
 
@@ -18,10 +18,11 @@ class TestClient(TestCase):
     def setUp(self):
         super(TestClient, self).setUp()
         dummycache_cache.datetime = DatetimeStub()
-        cache.clear()
+        self.cache = get_default_cache()
+        self.cache.clear()
 
     def tearDown(self):
-        cache.clear()
+        self.cache.clear()
         dummycache_cache.datetime = datetime
         super(TestClient, self).tearDown()
 
@@ -672,7 +673,7 @@ class TestClient(TestCase):
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.content, 'Mocked response content X')
 
-        cache.clear()
+        self.cache.clear()
 
         r = client.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)
@@ -716,7 +717,7 @@ class TestClient(TestCase):
         response = client.get('http://www.test.com/cookie')
         mock_get.assert_called_with('http://www.test.com/cookie')
         self.assertIn('name', response.cookies.keys())
-        self.assertTrue(cache.get('www.test.com'))
+        self.assertTrue(self.cache.get('www.test.com'))
 
         #all later calls of same domain must send cookies in header
         response = client.get('http://www.test.com/some_other_path/')
@@ -732,9 +733,9 @@ class TestClient(TestCase):
         # other domain get their cookies
         response = client.get('http://www.othertest.com/')
 
-        self.assertIsNotNone(cache.get('www.othertest.com'))
-        self.assertIsNotNone(cache.get('www.othertest.com.other_name'))
-        self.assertIsNotNone(cache.get('www.othertest.com.other_name2'))
+        self.assertIsNotNone(self.cache.get('www.othertest.com'))
+        self.assertIsNotNone(self.cache.get('www.othertest.com.other_name'))
+        self.assertIsNotNone(self.cache.get('www.othertest.com.other_name2'))
 
         response = client.get('http://www.othertest.com/some_other_path2/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path2/', cookies={'other_name2': 'value2', 'other_name': 'value'})
