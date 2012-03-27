@@ -8,9 +8,9 @@ from mock import patch
 from requests.models import Response
 from requests.utils import dict_from_string
 
-from requests_wrapper import client
-from requests_wrapper.default_cache import get_default_cache, set_default_cache
-from requests_wrapper.tests.datetimestub import DatetimeStub
+import dogbutler
+from dogbutler.default_cache import get_default_cache, set_default_cache
+from .datetimestub import DatetimeStub
 
 
 @patch('requests.get')
@@ -36,15 +36,15 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
 
         # Move time forward 1 second
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
 
     def test_get_different_urls(self, mock_get):
@@ -56,15 +56,15 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path/1')
+        dogbutler.get('http://www.test.com/path/1')
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/path/2')
+        dogbutler.get('http://www.test.com/path/2')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/path/1')
+        dogbutler.get('http://www.test.com/path/1')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/path/3')
+        dogbutler.get('http://www.test.com/path/3')
         self.assertEqual(mock_get.call_count, 3)
-        client.get('http://www.test.com/path/2')
+        dogbutler.get('http://www.test.com/path/2')
         self.assertEqual(mock_get.call_count, 3)
 
     def test_get_different_queries(self, mock_get):
@@ -76,15 +76,15 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path?name=john')
+        dogbutler.get('http://www.test.com/path?name=john')
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/path?name=emily')
+        dogbutler.get('http://www.test.com/path?name=emily')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/path?name=john&age=30')
+        dogbutler.get('http://www.test.com/path?name=john&age=30')
         self.assertEqual(mock_get.call_count, 3)
-        client.get('http://www.test.com/path?name=emily')
+        dogbutler.get('http://www.test.com/path?name=emily')
         self.assertEqual(mock_get.call_count, 3)
-        client.get('http://www.test.com/path?name=john&age=30')
+        dogbutler.get('http://www.test.com/path?name=john&age=30')
         self.assertEqual(mock_get.call_count, 3)
 
     def test_get_different_fragments(self, mock_get):
@@ -96,15 +96,15 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path#help')
+        dogbutler.get('http://www.test.com/path#help')
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/path#header')
+        dogbutler.get('http://www.test.com/path#header')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/path#header')
+        dogbutler.get('http://www.test.com/path#header')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/path#footer')
+        dogbutler.get('http://www.test.com/path#footer')
         self.assertEqual(mock_get.call_count, 3)
-        client.get('http://www.test.com/path#help')
+        dogbutler.get('http://www.test.com/path#help')
         self.assertEqual(mock_get.call_count, 3)
 
     def test_get_vary_on_accept(self, mock_get):
@@ -117,15 +117,15 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path', headers={'Accept': 'application/json'})
+        dogbutler.get('http://www.test.com/path', headers={'Accept': 'application/json'})
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/path', headers={'Accept': 'application/json'})
+        dogbutler.get('http://www.test.com/path', headers={'Accept': 'application/json'})
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/path', headers={'Accept': 'application/xml'})
+        dogbutler.get('http://www.test.com/path', headers={'Accept': 'application/xml'})
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/path', headers={'Accept': 'text/html'})
+        dogbutler.get('http://www.test.com/path', headers={'Accept': 'text/html'})
         self.assertEqual(mock_get.call_count, 3)
-        client.get('http://www.test.com/path', headers={'Accept': 'application/json, */*'})
+        dogbutler.get('http://www.test.com/path', headers={'Accept': 'application/json, */*'})
         self.assertEqual(mock_get.call_count, 4)
 
     def test_get_no_cache_control_header(self, mock_get):
@@ -136,11 +136,11 @@ class TestClient(TestCase):
         response.headers = {}
         mock_get.return_value = response
 
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 3)
 
     def test_get_cache_control_no_cache(self, mock_get):
@@ -156,11 +156,11 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 3)
 
     def test_get_cache_control_no_cache_empty_field(self, mock_get):
@@ -173,11 +173,11 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/nocache_control=True')
+        dogbutler.get('http://www.test.com/nocache_control=True')
         self.assertEqual(mock_get.call_count, 3)
 
     def test_get_cache_201(self, mock_get):
@@ -189,11 +189,11 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 201)
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 201)
 
@@ -206,11 +206,11 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 204)
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 204)
 
@@ -223,11 +223,11 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 400)
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 400)
 
@@ -240,11 +240,11 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 401)
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 401)
 
@@ -257,11 +257,11 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 403)
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 403)
 
@@ -274,11 +274,11 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 404)
 
-        response = client.get('http://www.test.com/path')
+        response = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(response.status_code, 404)
 
@@ -302,13 +302,13 @@ class TestClient(TestCase):
         mock_get.return_value = response1
 
 
-        r = client.get('http://www.test.com/neverseemeagain')
+        r = dogbutler.get('http://www.test.com/neverseemeagain')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/neverseemeagain')
         self.assertEqual(r.status_code, 200)
 
         #assert we not make request to 301 again
-        r = client.get('http://www.test.com/neverseemeagain')
+        r = dogbutler.get('http://www.test.com/neverseemeagain')
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/redirect_here')
         self.assertEqual(r.status_code, 200)
@@ -334,19 +334,19 @@ class TestClient(TestCase):
         mock_get.return_value = response1
 
 
-        r = client.get('http://www.test.com/neverseemeagain')
+        r = dogbutler.get('http://www.test.com/neverseemeagain')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/neverseemeagain')
         self.assertEqual(r.status_code, 200)
 
         # assert we not making any call as we get result from cache
-        r = client.get('http://www.test.com/neverseemeagain')
+        r = dogbutler.get('http://www.test.com/neverseemeagain')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
 
         # assert get the redirected url direct is working fine, and give us result from cache
-        r = client.get('http://www.test.com/redirect_here')
+        r = dogbutler.get('http://www.test.com/redirect_here')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
@@ -385,28 +385,28 @@ class TestClient(TestCase):
         mock_get.return_value = response3
 
 
-        r = client.get('http://www.test.com/neverseemeagain')
+        r = dogbutler.get('http://www.test.com/neverseemeagain')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/neverseemeagain')
         self.assertEqual(r.status_code, 200)
 
         #assert we not make request to 301 again
-        r = client.get('http://www.test.com/neverseemeagain')
+        r = dogbutler.get('http://www.test.com/neverseemeagain')
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/redirect_3')
         self.assertEqual(r.status_code, 200)
 
-        r = client.get('http://www.test.com/redirect_1')
+        r = dogbutler.get('http://www.test.com/redirect_1')
         self.assertEqual(mock_get.call_count, 3)
         mock_get.assert_called_with('http://www.test.com/redirect_3')
         self.assertEqual(r.status_code, 200)
 
-        r = client.get('http://www.test.com/redirect_2')
+        r = dogbutler.get('http://www.test.com/redirect_2')
         self.assertEqual(mock_get.call_count, 4)
         mock_get.assert_called_with('http://www.test.com/redirect_3')
         self.assertEqual(r.status_code, 200)
 
-        r = client.get('http://www.test.com/redirect_3')
+        r = dogbutler.get('http://www.test.com/redirect_3')
         self.assertEqual(mock_get.call_count, 5)
         mock_get.assert_called_with('http://www.test.com/redirect_3')
         self.assertEqual(r.status_code, 200)
@@ -446,29 +446,29 @@ class TestClient(TestCase):
         mock_get.return_value = response3
 
 
-        r = client.get('http://www.test.com/neverseemeagain')
+        r = dogbutler.get('http://www.test.com/neverseemeagain')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
 
         # assert we not making any call as we get result from cache
-        r = client.get('http://www.test.com/neverseemeagain')
+        r = dogbutler.get('http://www.test.com/neverseemeagain')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
 
         # assert get the redirected url direct is working fine, and give us result from cache
-        r = client.get('http://www.test.com/redirect_1')
+        r = dogbutler.get('http://www.test.com/redirect_1')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
 
-        r = client.get('http://www.test.com/redirect_2')
+        r = dogbutler.get('http://www.test.com/redirect_2')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
 
-        r = client.get('http://www.test.com/redirect_3')
+        r = dogbutler.get('http://www.test.com/redirect_3')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.content, 'Mocked response content')
@@ -483,14 +483,14 @@ class TestClient(TestCase):
             }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
         # Move time forward 1 second
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Tue, 28 Feb 2012 15:50:14 GMT'})
 
@@ -504,14 +504,14 @@ class TestClient(TestCase):
             }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
         # Move time forward 1 second
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
-        client.get('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
+        dogbutler.get('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': '2011-01-11 00:00:00.000000'})
 
@@ -525,15 +525,15 @@ class TestClient(TestCase):
             }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/path')
 
-        client.get('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'})
+        dogbutler.get('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'})
         self.assertEqual(mock_get.call_count, 3)
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-Modified-Since': 'Sun, 01 Jan 2012 00:00:00 GMT'})
 
@@ -547,14 +547,14 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
         # Move time forward 1 second
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"fdcd6016cf6059cbbf418d66a51a6b0a"'})
 
@@ -568,14 +568,14 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
         # Move time forward 1 second
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
-        client.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
+        dogbutler.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
 
@@ -589,15 +589,15 @@ class TestClient(TestCase):
         }
         mock_get.return_value = response
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         mock_get.assert_called_with('http://www.test.com/path')
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
         mock_get.assert_called_with('http://www.test.com/path')
 
-        client.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
+        dogbutler.get('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
         self.assertEqual(mock_get.call_count, 3)
         mock_get.assert_called_with('http://www.test.com/path', headers={'If-None-Match': '"ffffffffffffffffffffffffffffffff"'})
 
@@ -618,19 +618,19 @@ class TestClient(TestCase):
         }
         mock_get.side_effect = [response0, response1, response1, response1]
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
 
         # Move time forward 1 second
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
 
-        r = client.get('http://www.test.com/path')
+        r = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
         self.assertEqual(r.status_code, 304)
         self.assertEqual(r.content, 'Mocked response content')
         self.assertEqual(r.headers['Cache-Control'], 'max-age=2')
 
-        r = client.get('http://www.test.com/path')
+        r = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
         self.assertEqual(r.status_code, 304)
         self.assertEqual(r.content, 'Mocked response content')
@@ -638,7 +638,7 @@ class TestClient(TestCase):
         # Move time forward 3 seconds (1 + 2)
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=3)
 
-        r = client.get('http://www.test.com/path')
+        r = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)
         self.assertEqual(r.status_code, 304)
         self.assertEqual(r.content, 'Mocked response content')
@@ -670,17 +670,17 @@ class TestClient(TestCase):
 
         mock_get.side_effect = [response0, response1, response2]
 
-        r = client.get('http://www.test.com/path')
+        r = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
         self.assertEqual(r.content, 'Mocked response content X')
 
         self.cache.clear()
 
-        r = client.get('http://www.test.com/path')
+        r = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)
         self.assertEqual(r.content, 'Mocked response content Y')
 
-        r = client.get('http://www.test.com/path')
+        r = dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)
         self.assertEqual(r.content, 'Mocked response content Y')
 
@@ -715,34 +715,34 @@ class TestClient(TestCase):
 
         mock_get.side_effect = [response0, response3, response0, response1, response2, response2, response0]
 
-        response = client.get('http://www.test.com/cookie')
+        response = dogbutler.get('http://www.test.com/cookie')
         mock_get.assert_called_with('http://www.test.com/cookie')
         self.assertIn('name', response.cookies.keys())
         self.assertTrue(self.cache.get('www.test.com'))
 
         #all later calls of same domain must send cookies in header
-        response = client.get('http://www.test.com/some_other_path/')
+        response = dogbutler.get('http://www.test.com/some_other_path/')
         mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name': 'value'})
 
-        response = client.get('http://www.test.com/some_other_path2/')
+        response = dogbutler.get('http://www.test.com/some_other_path2/')
         mock_get.assert_called_with('http://www.test.com/some_other_path2/', cookies={'name2': 'value2', 'name3': 'value3', 'name': 'value'})
 
         # other domain get no cookies
-        response = client.get('http://www.other_domain.com/some_other_path2/')
+        response = dogbutler.get('http://www.other_domain.com/some_other_path2/')
         mock_get.assert_called_with('http://www.other_domain.com/some_other_path2/')
 
         # other domain get their cookies
-        response = client.get('http://www.othertest.com/')
+        response = dogbutler.get('http://www.othertest.com/')
 
         self.assertIsNotNone(self.cache.get('www.othertest.com'))
         self.assertIsNotNone(self.cache.get('www.othertest.com.other_name'))
         self.assertIsNotNone(self.cache.get('www.othertest.com.other_name2'))
 
-        response = client.get('http://www.othertest.com/some_other_path2/')
+        response = dogbutler.get('http://www.othertest.com/some_other_path2/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path2/', cookies={'other_name2': 'value2', 'other_name': 'value'})
 
         #call first one again, make sure we still send cookie
-        response = client.get('http://www.test.com/some_other_path/')
+        response = dogbutler.get('http://www.test.com/some_other_path/')
         mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name3': 'value3', 'name': 'value'})
 
     def test_expired_cookie(self, mock_get):
@@ -758,18 +758,18 @@ class TestClient(TestCase):
 
 
         mock_get.return_value = response
-        response = client.get('http://www.othertest.com/some_other_path2/')
+        response = dogbutler.get('http://www.othertest.com/some_other_path2/')
 
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=1)
-        response = client.get('http://www.othertest.com/some_other_path/')
+        response = dogbutler.get('http://www.othertest.com/some_other_path/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path/', cookies={'other_name2': 'value2', 'other_name': 'value'})
 
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=4)
-        response = client.get('http://www.othertest.com/some_other_path/')
+        response = dogbutler.get('http://www.othertest.com/some_other_path/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path/', cookies={'other_name2': 'value2'})
 
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=11)
-        response = client.get('http://www.othertest.com/some_other_path/')
+        response = dogbutler.get('http://www.othertest.com/some_other_path/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path/')
 
     def test_set_default_cache(self, mock_get):
@@ -785,28 +785,28 @@ class TestClient(TestCase):
         C1 = Cache()
         C2 = Cache()
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 1)
 
         set_default_cache(C1)
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 2)
 
         set_default_cache(C2)
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)
 
         set_default_cache(C0)
 
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)
-        client.get('http://www.test.com/path')
+        dogbutler.get('http://www.test.com/path')
         self.assertEqual(mock_get.call_count, 3)
