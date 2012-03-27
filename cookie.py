@@ -53,17 +53,17 @@ def extract_cookie(url, response):
     cache = get_default_cache()
     #if there's set-cookie in response
     if response and response.cookies:
-        domain = urlparse(url).netloc
+        origin = urlparse(url).netloc
         #if there's not cookie for this domain, create one
-        if not cache.get(domain):
-            cache.set(domain,set())
-        domain_cookies = cache.get(domain)
+
+        if not cache.get(origin):
+            cache.set(origin,set())
+        origin_cookies = cache.get(origin)
         cookie = SimpleCookie()
         cookie.load(response.headers['set-cookie'])
         for name, c in cookie.items():
-            cookie_name = '%s.%s' % (domain, name)
+            cookie_name = '%s.%s' % (origin, name)
             max_age = None
-
             # convert expires to seconds, so we use take advantage of cache expiry feature,
             # no need to clear cookie ourselves
             if c['expires']:
@@ -76,12 +76,24 @@ def extract_cookie(url, response):
             if c['max-age']:
                 max_age = int(c['max-age'])
 
+            domain = c['domain']
+            if domain:
+                if not cache.get(domain):
+                    cache.set(domain, set())
+                cookie_name = '%s.%s' % (domain,name)
+                domain_cookies = cache.get(c['domain'])
+                domain_cookies.add(cookie_name)
+
             # save morsel (cookie info) in cache :) if max_age < 0, the key is deleted
             if max_age is not None:
                 cache.set(cookie_name, c, max_age)
             else:
                 cache.set(cookie_name, c)
 
-            domain_cookies.add(cookie_name)
+            #update lookup cache
+            if domain:
+                cache.set(domain, domain_cookies)
+            else:
+                origin_cookies.add(cookie_name)
 
-        cache.set(domain, domain_cookies)
+        cache.set(origin, origin_cookies)
