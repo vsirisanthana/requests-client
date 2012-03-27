@@ -1,4 +1,4 @@
-from dogutils.cache import get_cache_key, learn_cache_key, get_max_age
+from utils.cache import get_cache_key, learn_cache_key, get_max_age
 
 
 CACHE_MANAGER_LONG_TERM_CACHE_KEY_PREFIX = 'longterm'
