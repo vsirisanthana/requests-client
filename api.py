@@ -5,29 +5,25 @@ from .cache import CacheManager
 from .cookie import extract_cookie, get_domain_cookie
 from .defaults import get_default_cache, get_default_redirect_cache
 from .models import Request
+from .redirect import RedirectManager
 
 
 DEFAULT_KEY_PREFIX = 'dogbutler'
+DEFAULT_REDIRECT_KEY_PREFIX = 'redirect'
 
 
 def get(url, queue=None, **kwargs):
-    # Get default caches
-    cache = get_default_cache()
-    redirect_cache = get_default_redirect_cache()
-    cache_manager = CacheManager(key_prefix=DEFAULT_KEY_PREFIX, cache=cache)
+    # Create managers
+    cache_manager = CacheManager(key_prefix=DEFAULT_KEY_PREFIX, cache=get_default_cache())
+    redirect_manager = RedirectManager(key_prefix=DEFAULT_REDIRECT_KEY_PREFIX, cache=get_default_redirect_cache())
 
-    # check if the url is permanently redirect or not
-    history = []
-    while True:
-        if url in history:
-            raise TooManyRedirects()
-        redirect_to = redirect_cache.get('redirect.%s' % url)
-        if redirect_to is None:
-            break
-        url = redirect_to
-
+    # Convert to Request object
     request = Request(url, method='GET', **kwargs)
     request.COOKIES = get_domain_cookie(url) or dict()
+
+    # check if the url is permanently redirect or not
+    redirect_manager.process_request(request)
+    url = request.path
 
     response = cache_manager.process_request(request)
     if response is not None:
@@ -44,14 +40,8 @@ def get(url, queue=None, **kwargs):
     if get_domain_cookie(url):
         kwargs['cookies'] = get_domain_cookie(url)
     response = requests.get(url, **kwargs)
-    if response.history:
-        request.path = response.url
 
-        for r in response.history:
-            if r.status_code == 301:
-                #TODO: handle case of no Location header
-                redirect_to = r.headers.get('Location')
-                redirect_cache.set('redirect.%s' % r.url, redirect_to)
+    redirect_manager.process_response(request, response)
 
     # Handle 304
     if response.status_code == 304:
