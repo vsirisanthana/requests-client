@@ -23,4 +23,4 @@ __copyright__ = 'Copyright 2012 Vichaya/Euam Sirisanthana'
 
 
 from .api import request, get, head, post, patch, put, delete, options
-from .default_cache import set_default_cache
+from .defaults import set_default_cache

@@ -9,7 +9,7 @@ from requests.models import Response
 from requests.utils import dict_from_string
 
 from .. import get
-from ..default_cache import get_default_cache, set_default_cache
+from ..defaults import get_default_cache, set_default_cache, get_default_cookie_cache
 from .datetimestub import DatetimeStub
 
 
@@ -21,8 +21,11 @@ class TestClient(TestCase):
         dummycache_cache.datetime = DatetimeStub()
         self.cache = get_default_cache()
         self.cache.clear()
+        self.cookie_cache = get_default_cookie_cache()
+        self.cookie_cache.clear()
 
     def tearDown(self):
+        self.cookie_cache.clear()
         self.cache.clear()
         dummycache_cache.datetime = datetime
         super(TestClient, self).tearDown()
@@ -718,7 +721,7 @@ class TestClient(TestCase):
         response = get('http://www.test.com/cookie')
         mock_get.assert_called_with('http://www.test.com/cookie')
         self.assertIn('name', response.cookies.keys())
-        self.assertTrue(self.cache.get('www.test.com'))
+        self.assertTrue(self.cookie_cache.get('www.test.com'))
 
         #all later calls of same domain must send cookies in header
         response = get('http://www.test.com/some_other_path/')
@@ -734,9 +737,9 @@ class TestClient(TestCase):
         # other domain get their cookies
         response = get('http://www.othertest.com/')
 
-        self.assertIsNotNone(self.cache.get('www.othertest.com'))
-        self.assertIsNotNone(self.cache.get('www.othertest.com.other_name'))
-        self.assertIsNotNone(self.cache.get('www.othertest.com.other_name2'))
+        self.assertIsNotNone(self.cookie_cache.get('www.othertest.com'))
+        self.assertIsNotNone(self.cookie_cache.get('www.othertest.com.other_name'))
+        self.assertIsNotNone(self.cookie_cache.get('www.othertest.com.other_name2'))
 
         response = get('http://www.othertest.com/some_other_path2/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path2/', cookies={'other_name2': 'value2', 'other_name': 'value'})
