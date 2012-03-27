@@ -1,5 +1,5 @@
-from requests import request, get as r_get, head, post, patch, put, delete, options, TooManyRedirects
 import requests
+from requests import request, head, post, patch, put, delete, options, TooManyRedirects
 
 from .cache import CacheManager
 from .cookie import extract_cookie, get_domain_cookie
@@ -7,10 +7,13 @@ from .default_cache import get_default_cache
 from .models import Request
 
 
+DEFAULT_KEY_PREFIX = 'dogbutler'
+
+
 def get(url, queue=None, **kwargs):
     # Get default cache
     cache = get_default_cache()
-    cache_manager = CacheManager(key_prefix='dogbutler', cache=cache)
+    cache_manager = CacheManager(key_prefix=DEFAULT_KEY_PREFIX, cache=cache)
 
     # check if the url is permanently redirect or not
     history = []
