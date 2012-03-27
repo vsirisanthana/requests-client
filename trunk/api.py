@@ -1,24 +1,10 @@
+from requests import request, get as r_get, head, post, patch, put, delete, options, TooManyRedirects
 import requests
-from requests import *
 
-from cache import CacheManager
-from cookie import extract_cookie, get_domain_cookie
-from default_cache import get_default_cache
-
-
-class Request:
-
-    def __init__(self, url, method='GET', **kwargs):
-        self.path = url
-        self.method = method
-        self.headers = kwargs.get('headers', {})
-
-    def get_full_path(self):
-        return self.path
-
-
-requests.Response.has_header = lambda self, header: header in self.headers
-requests.Response.__getitem__ = lambda self, header: self.headers[header]
+from .cache import CacheManager
+from .cookie import extract_cookie, get_domain_cookie
+from .default_cache import get_default_cache
+from .models import Request
 
 
 def get(url, queue=None, **kwargs):
