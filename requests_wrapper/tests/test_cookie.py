@@ -7,7 +7,7 @@ from requests.utils import dict_from_string
 from dummycache import cache as dummycache_cache
 
 from requests_wrapper.cookie import get_domain_cookie, extract_cookie
-from requests_wrapper.default_cache import cache
+from requests_wrapper.default_cache import get_default_cache
 from requests_wrapper.tests.datetimestub import DatetimeStub
 
 
@@ -16,7 +16,8 @@ class TestCookie(TestCase):
     def setUp(self):
         super(TestCookie, self).setUp()
         dummycache_cache.datetime = DatetimeStub()
-        cache.clear()
+        self.cache = get_default_cache()
+        self.cache.clear()
         # prepare cookie
         self.cookies = SimpleCookie()
         self.cookies['oreo'] = 'yumm'
@@ -27,12 +28,12 @@ class TestCookie(TestCase):
         for cookie_name, cookie in self.cookies.items():
             name = 'www.test.com.%s' % cookie_name
             self.name_set.add(name)
-            cache.set(name, cookie, int(cookie['max-age']))
+            self.cache.set(name, cookie, int(cookie['max-age']))
 
-        cache.set('www.test.com', self.name_set)
+        self.cache.set('www.test.com', self.name_set)
 
     def tearDown(self):
-        cache.clear()
+        self.cache.clear()
         dummycache_cache.datetime = datetime
         super(TestCookie, self).tearDown()
 
@@ -44,7 +45,7 @@ class TestCookie(TestCase):
         self.assertEqual(set_cookie['oreo'], self.cookies['oreo'].value)
         self.assertEqual(set_cookie['twix'], self.cookies['twix'].value)
 
-        cookie_name_list = cache.get('www.test.com')
+        cookie_name_list = self.cache.get('www.test.com')
         self.assertEquals(len(cookie_name_list), 2)
         self.assertIn('www.test.com.oreo', cookie_name_list)
         self.assertIn('www.test.com.twix', cookie_name_list)
@@ -60,7 +61,7 @@ class TestCookie(TestCase):
         self.assertFalse(set_cookie.has_key('twix'))
         self.assertEqual(set_cookie['oreo'], self.cookies['oreo'].value)
 
-        cookie_name_list = cache.get('www.test.com')
+        cookie_name_list = self.cache.get('www.test.com')
         self.assertEquals(len(cookie_name_list), 1)
         self.assertIn('www.test.com.oreo', cookie_name_list)
         self.assertNotIn('www.test.com.twix', cookie_name_list)
@@ -72,7 +73,7 @@ class TestCookie(TestCase):
         self.assertFalse(set_cookie.has_key('oreo'))
         self.assertFalse(set_cookie.has_key('twix'))
 
-        cookie_name_list = cache.get('www.test.com')
+        cookie_name_list = self.cache.get('www.test.com')
         self.assertEquals(len(cookie_name_list), 0)
         self.assertNotIn('www.test.com.oreo', cookie_name_list)
         self.assertNotIn('www.test.com.twix', cookie_name_list)
@@ -87,28 +88,28 @@ class TestCookie(TestCase):
         }
         response.cookies = dict_from_string(response.headers['set-cookie'])
 
-        self.assertIsNone(cache.get('www.another_test.com'))
+        self.assertIsNone(self.cache.get('www.another_test.com'))
 
         extract_cookie('http://www.another_test.com', response)
 
         #assert that cookie for domain is there
-        name_list = cache.get('www.another_test.com')
+        name_list = self.cache.get('www.another_test.com')
         self.assertEqual(set(['www.another_test.com.chips_ahoy', 'www.another_test.com.cadbury', 'www.another_test.com.coke']), name_list)
 
-        chips_ahoy = cache.get('www.another_test.com.chips_ahoy')
+        chips_ahoy = self.cache.get('www.another_test.com.chips_ahoy')
         self.assertIsNotNone(chips_ahoy)
         self.assertEqual('chips_ahoy', chips_ahoy.key)
         self.assertEqual('cookie', chips_ahoy.value)
         self.assertEqual(expire_string, chips_ahoy['expires'])
 
 
-        cadbury = cache.get('www.another_test.com.cadbury')
+        cadbury = self.cache.get('www.another_test.com.cadbury')
         self.assertIsNotNone(cadbury)
         self.assertEqual('cadbury', cadbury.key)
         self.assertEqual('chocolate', cadbury.value)
         self.assertEqual('3', cadbury['max-age'])
 
-        coke = cache.get('www.another_test.com.coke')
+        coke = self.cache.get('www.another_test.com.coke')
         self.assertIsNotNone(coke)
         self.assertEqual('coke', coke.key)
         self.assertEqual('soda', coke.value)
@@ -118,18 +119,18 @@ class TestCookie(TestCase):
 
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=3)
         # assert that we set the max-age for cache correctly for both max-age and expires
-        chips_ahoy = cache.get('www.another_test.com.chips_ahoy')
+        chips_ahoy = self.cache.get('www.another_test.com.chips_ahoy')
         self.assertIsNone(chips_ahoy)
 
-        cadbury = cache.get('www.another_test.com.cadbury')
+        cadbury = self.cache.get('www.another_test.com.cadbury')
         self.assertIsNone(cadbury)
 
         # should still exist as max-age has higher priority than expires
-        coke = cache.get('www.another_test.com.coke')
+        coke = self.cache.get('www.another_test.com.coke')
         self.assertIsNotNone(coke)
 
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=5)
-        coke = cache.get('www.another_test.com.coke')
+        coke = self.cache.get('www.another_test.com.coke')
         self.assertIsNone(coke)
 
 
@@ -147,11 +148,11 @@ class TestCookie(TestCase):
         }
         response.cookies = dict_from_string(response.headers['set-cookie'])
 
-        self.assertIsNone(cache.get('www.another_test.com'))
+        self.assertIsNone(self.cache.get('www.another_test.com'))
 
         extract_cookie('http://www.another_test.com', response)
 
-        self.assertIsNotNone(cache.get('www.another_test.com'))
+        self.assertIsNotNone(self.cache.get('www.another_test.com'))
 
         set_cookie = get_domain_cookie('http://www.another_test.com/sweetxxx/')
         self.assertFalse(set_cookie.has_key('chips_ahoy'))

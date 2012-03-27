@@ -2,7 +2,7 @@ from Cookie import SimpleCookie
 from datetime import datetime
 from urlparse import urlparse
 
-from default_cache import cache
+from default_cache import get_default_cache
 
 def _path_ok(cookie, url):
     if not cookie['path']:
@@ -29,6 +29,7 @@ def get_domain_cookie(url):
     """
     return simple dictionary of (key:value) cookies for domain
     """
+    cache = get_default_cache()
     domain = urlparse(url).netloc
     set_cookie = {}
     expired_cookie = set()
@@ -49,6 +50,7 @@ def get_domain_cookie(url):
 
 
 def extract_cookie(url, response):
+    cache = get_default_cache()
     #if there's set-cookie in response
     if response and response.cookies:
         domain = urlparse(url).netloc
@@ -83,5 +85,3 @@ def extract_cookie(url, response):
             domain_cookies.add(cookie_name)
 
         cache.set(domain, domain_cookies)
-
-

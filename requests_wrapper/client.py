@@ -3,10 +3,10 @@ from requests import *
 
 from cache import CacheManager
 from cookie import extract_cookie, get_domain_cookie
-from default_cache import cache
+from default_cache import get_default_cache
 
 
-CACHE_MANAGER = CacheManager(key_prefix='dogbutler', cache=cache)      # A singleton cache manager
+CACHE_MANAGER = CacheManager(key_prefix='dogbutler', cache=get_default_cache())      # A singleton cache manager
 
 
 class Request:
@@ -25,6 +25,8 @@ requests.Response.__getitem__ = lambda self, header: self.headers[header]
 
 
 def get(url, queue=None, **kwargs):
+    # Get default cache
+    cache = get_default_cache()
 
     # check if the url is permanently redirect or not
     history = []
