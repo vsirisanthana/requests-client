@@ -6,7 +6,7 @@ from requests.models import Response
 from dummycache import cache as dummycache_cache
 
 from .. import async
-from ..default_cache import get_default_cache
+from ..defaults import get_default_cache
 from .datetimestub import DatetimeStub
 
 

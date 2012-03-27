@@ -7,7 +7,7 @@ from requests.utils import dict_from_string
 from dummycache import cache as dummycache_cache
 
 from ..cookie import get_domain_cookie, extract_cookie
-from ..default_cache import get_default_cache
+from ..defaults import get_default_cookie_cache
 from .datetimestub import DatetimeStub
 
 
@@ -16,7 +16,7 @@ class TestCookie(TestCase):
     def setUp(self):
         super(TestCookie, self).setUp()
         dummycache_cache.datetime = DatetimeStub()
-        self.cache = get_default_cache()
+        self.cache = get_default_cookie_cache()
         self.cache.clear()
         # prepare cookie
         self.cookies = SimpleCookie()

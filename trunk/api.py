@@ -3,7 +3,7 @@ from requests import request, head, post, patch, put, delete, options, TooManyRe
 
 from .cache import CacheManager
 from .cookie import extract_cookie, get_domain_cookie
-from .default_cache import get_default_cache
+from .defaults import get_default_cache
 from .models import Request
 
 
