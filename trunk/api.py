@@ -23,23 +23,19 @@ def get(url, queue=None, **kwargs):
 
     # check if the url is permanently redirect or not
     redirect_manager.process_request(request)
-    url = request.path
 
     response = cache_manager.process_request(request)
     if response is not None:
         if queue: queue.put(response)
         return response
 
-    cache_manager.patch_if_modified_since_header(request)
-    cache_manager.patch_if_none_match_header(request)
-
     # Update kwargs with new headers
     if request.headers: kwargs['headers'] = request.headers
 
     # set cookie
-    if get_domain_cookie(url):
-        kwargs['cookies'] = get_domain_cookie(url)
-    response = requests.get(url, **kwargs)
+    if get_domain_cookie(request.url):
+        kwargs['cookies'] = get_domain_cookie(request.url)
+    response = requests.get(request.url, **kwargs)
 
     redirect_manager.process_response(request, response)
 
@@ -49,15 +45,13 @@ def get(url, queue=None, **kwargs):
         if response is None:
             if kwargs.has_key('If-Modified-Since'): kwargs['If-Modified-Since']
             if kwargs.has_key('If-None-Match'): del kwargs['If-None-Match']
-            response = requests.get(url, **kwargs)
+            response = requests.get(request.url, **kwargs)
 
     #handle cookie
-    extract_cookie(url, response)
+    extract_cookie(request.url, response)
 
-    #Update cache if cache-control is not no-cache
-    cache_control = response.headers.get('Cache-Control')
-    if cache_control is not None and 'no-cache' not in cache_control:
-        cache_manager.process_response(request, response)
+    # Update cache as necessary
+    cache_manager.process_response(request, response)
 
     if queue: queue.put(response)
     return response
