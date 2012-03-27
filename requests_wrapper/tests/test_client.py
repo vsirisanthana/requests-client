@@ -2,13 +2,14 @@ from Cookie import _getdate
 from datetime import datetime, timedelta
 from unittest import TestCase
 
+from dummycache import cache as dummycache_cache
+from dummycache.cache import Cache
 from mock import patch
 from requests.models import Response
 from requests.utils import dict_from_string
-from dummycache import cache as dummycache_cache
 
 from requests_wrapper import client
-from requests_wrapper.default_cache import get_default_cache
+from requests_wrapper.default_cache import get_default_cache, set_default_cache
 from requests_wrapper.tests.datetimestub import DatetimeStub
 
 
@@ -744,8 +745,6 @@ class TestClient(TestCase):
         response = client.get('http://www.test.com/some_other_path/')
         mock_get.assert_called_with('http://www.test.com/some_other_path/', cookies={'name2': 'value2', 'name3': 'value3', 'name': 'value'})
 
-
-
     def test_expired_cookie(self, mock_get):
 
         expire_string = _getdate(future=3)
@@ -773,10 +772,41 @@ class TestClient(TestCase):
         response = client.get('http://www.othertest.com/some_other_path/')
         mock_get.assert_called_with('http://www.othertest.com/some_other_path/')
 
+    def test_set_default_cache(self, mock_get):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Cache-Control': 'max-age=100',
+        }
+        mock_get.return_value = response
 
+        C0 = self.cache
+        C1 = Cache()
+        C2 = Cache()
 
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 1)
 
+        set_default_cache(C1)
 
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 2)
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 2)
 
+        set_default_cache(C2)
 
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 3)
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 3)
 
+        set_default_cache(C0)
+
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 3)
+        client.get('http://www.test.com/path')
+        self.assertEqual(mock_get.call_count, 3)
