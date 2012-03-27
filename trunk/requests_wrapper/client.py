@@ -6,9 +6,6 @@ from cookie import extract_cookie, get_domain_cookie
 from default_cache import get_default_cache
 
 
-CACHE_MANAGER = CacheManager(key_prefix='dogbutler', cache=get_default_cache())      # A singleton cache manager
-
-
 class Request:
 
     def __init__(self, url, method='GET', **kwargs):
@@ -27,6 +24,7 @@ requests.Response.__getitem__ = lambda self, header: self.headers[header]
 def get(url, queue=None, **kwargs):
     # Get default cache
     cache = get_default_cache()
+    cache_manager = CacheManager(key_prefix='dogbutler', cache=cache)
 
     # check if the url is permanently redirect or not
     history = []
@@ -41,13 +39,13 @@ def get(url, queue=None, **kwargs):
     request = Request(url, method='GET', **kwargs)
     request.COOKIES = get_domain_cookie(url) or dict()
 
-    response = CACHE_MANAGER.process_request(request)
+    response = cache_manager.process_request(request)
     if response is not None:
         if queue: queue.put(response)
         return response
 
-    CACHE_MANAGER.patch_if_modified_since_header(request)
-    CACHE_MANAGER.patch_if_none_match_header(request)
+    cache_manager.patch_if_modified_since_header(request)
+    cache_manager.patch_if_none_match_header(request)
 
     # Update kwargs with new headers
     if request.headers: kwargs['headers'] = request.headers
@@ -67,7 +65,7 @@ def get(url, queue=None, **kwargs):
 
     # Handle 304
     if response.status_code == 304:
-        response = CACHE_MANAGER.process_304_response(request, response)
+        response = cache_manager.process_304_response(request, response)
         if response is None:
             if kwargs.has_key('If-Modified-Since'): kwargs['If-Modified-Since']
             if kwargs.has_key('If-None-Match'): del kwargs['If-None-Match']
@@ -79,7 +77,7 @@ def get(url, queue=None, **kwargs):
     #Update cache if cache-control is not no-cache
     cache_control = response.headers.get('Cache-Control')
     if cache_control is not None and 'no-cache' not in cache_control:
-        CACHE_MANAGER.process_response(request, response)
+        cache_manager.process_response(request, response)
 
     if queue: queue.put(response)
     return response
