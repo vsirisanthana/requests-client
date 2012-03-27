@@ -1,4 +1,0 @@
-dummycache
-mock
-nose
-requests
