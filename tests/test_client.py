@@ -8,9 +8,12 @@ from mock import patch
 from requests.models import Response
 from requests.utils import dict_from_string
 
-from .. import get
-from ..defaults import get_default_cache, set_default_cache, get_default_cookie_cache, get_default_redirect_cache
+#from .. import get
+#from ..defaults import get_default_cache, set_default_cache, get_default_cookie_cache, get_default_redirect_cache
 from .datetimestub import DatetimeStub
+
+from dogbutler import get
+from dogbutler.defaults import get_default_cache, set_default_cache, get_default_cookie_cache, get_default_redirect_cache
 
 
 @patch('requests.get')

@@ -1,11 +1,15 @@
 from requests import Response
 
-class Request:
+class Request(object):
 
     def __init__(self, url, method='GET', **kwargs):
-        self.path = url
+        self.url = url
         self.method = method
         self.headers = kwargs.get('headers', {})
+
+    @property
+    def path(self):
+        return self.url
 
     def get_full_path(self):
         return self.path

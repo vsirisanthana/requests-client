@@ -13,6 +13,13 @@ class CacheManager(object):
         self.cache_anonymous_only = cache_anonymous_only
 
     def process_request(self, request):
+        response = self.check_cache(request)
+        if response is None:
+            self.patch_if_modified_since_header(request)
+            self.patch_if_none_match_header(request)
+        return response
+
+    def check_cache(self, request):
         """
         Checks whether the page is already cached and returns the cached
         version if available.
@@ -93,6 +100,12 @@ class CacheManager(object):
         return True
 
     def process_response(self, request, response):
+        """Update cache if cache-control is not no-cache"""
+        cache_control = response.headers.get('Cache-Control')
+        if cache_control is not None and 'no-cache' not in cache_control:
+            self.update_cache(request, response)
+
+    def update_cache(self, request, response):
         """Sets the cache, if needed."""
         if not self._should_update_cache(request, response):
             # We don't need to update the cache, just return.
