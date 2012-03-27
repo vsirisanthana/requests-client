@@ -5,9 +5,8 @@ from mock import patch
 from requests.models import Response
 from dummycache import cache as dummycache_cache
 
-from dogbutler import async
-
-from dogbutler.default_cache import get_default_cache
+from .. import async
+from ..default_cache import get_default_cache
 from .datetimestub import DatetimeStub
 
 
