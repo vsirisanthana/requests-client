@@ -3,7 +3,7 @@ from requests import request, head, post, patch, put, delete, options, TooManyRe
 
 from .cache import CacheManager
 from .cookie import extract_cookie, get_domain_cookie
-from .defaults import get_default_cache
+from .defaults import get_default_cache, get_default_redirect_cache
 from .models import Request
 
 
@@ -11,8 +11,9 @@ DEFAULT_KEY_PREFIX = 'dogbutler'
 
 
 def get(url, queue=None, **kwargs):
-    # Get default cache
+    # Get default caches
     cache = get_default_cache()
+    redirect_cache = get_default_redirect_cache()
     cache_manager = CacheManager(key_prefix=DEFAULT_KEY_PREFIX, cache=cache)
 
     # check if the url is permanently redirect or not
@@ -20,7 +21,7 @@ def get(url, queue=None, **kwargs):
     while True:
         if url in history:
             raise TooManyRedirects()
-        redirect_to = cache.get('redirect.%s' % url)
+        redirect_to = redirect_cache.get('redirect.%s' % url)
         if redirect_to is None:
             break
         url = redirect_to
@@ -50,7 +51,7 @@ def get(url, queue=None, **kwargs):
             if r.status_code == 301:
                 #TODO: handle case of no Location header
                 redirect_to = r.headers.get('Location')
-                cache.set('redirect.%s' % r.url, redirect_to)
+                redirect_cache.set('redirect.%s' % r.url, redirect_to)
 
     # Handle 304
     if response.status_code == 304:
