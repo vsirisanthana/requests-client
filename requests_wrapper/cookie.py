@@ -4,6 +4,27 @@ from urlparse import urlparse
 
 from default_cache import cache
 
+def _path_ok(cookie, url):
+    if not cookie['path']:
+        return True
+
+    if cookie['path'] and cookie['path'] == '/':
+        return True
+    request_path = urlparse(url).path
+
+    if not request_path.startswith('/'):
+        request_path = '/' + request_path
+
+    if request_path == cookie['path']:
+        return True
+    elif cookie['path'].endswith('/') and request_path.startswith(cookie['path']):
+        return True
+    elif request_path.startswith(cookie['path']) and request_path[len(cookie['path'])] == '/':
+        return True
+    else:
+        return False
+
+
 def get_domain_cookie(url):
     """
     return simple dictionary of (key:value) cookies for domain
@@ -16,7 +37,8 @@ def get_domain_cookie(url):
         for cookie_name in domain_cookies:
             cookie = cache.get(cookie_name)
             if cookie:
-                set_cookie.update({cookie.key: cookie.value})
+                if _path_ok(cookie, url):
+                    set_cookie.update({cookie.key: cookie.value})
             else:
                 expired_cookie.add(cookie_name)
 
@@ -52,7 +74,7 @@ def extract_cookie(url, response):
             if c['max-age']:
                 max_age = int(c['max-age'])
 
-            # save morsel (cookie info) in cache :)
+            # save morsel (cookie info) in cache :) if max_age < 0, the key is deleted
             if max_age is not None:
                 cache.set(cookie_name, c, max_age)
             else:

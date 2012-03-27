@@ -131,3 +131,74 @@ class TestCookie(TestCase):
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=5)
         coke = cache.get('www.another_test.com.coke')
         self.assertIsNone(coke)
+
+
+    def test_get_path_cookie(self):
+        expire_string = _getdate(future=3)
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'set-cookie': 'chips_ahoy=cookie; expires=%s; path="/sweet", ' \
+                          'cadbury=chocolate;max-age=3; path="/sweet/", ' \
+                          'coke=soda; path="/soda/"; expires=%s; max-age=5;, '\
+                          'cottoncandy=soft; path="/sweet/tooth/";, '\
+                          'orange=fruit;, grape=sweet; path="/";' % (expire_string, expire_string)
+        }
+        response.cookies = dict_from_string(response.headers['set-cookie'])
+
+        self.assertIsNone(cache.get('www.another_test.com'))
+
+        extract_cookie('http://www.another_test.com', response)
+
+        self.assertIsNotNone(cache.get('www.another_test.com'))
+
+        set_cookie = get_domain_cookie('http://www.another_test.com/sweetxxx/')
+        self.assertFalse(set_cookie.has_key('chips_ahoy'))
+        self.assertFalse(set_cookie.has_key('cadbury'))
+        self.assertFalse(set_cookie.has_key('cottoncandy'))
+        self.assertFalse(set_cookie.has_key('coke'))
+        self.assertTrue(set_cookie.has_key('orange'))
+        self.assertTrue(set_cookie.has_key('grape'))
+
+
+        set_cookie = get_domain_cookie('http://www.another_test.com/sweet/')
+        self.assertTrue(set_cookie.has_key('chips_ahoy'))
+        self.assertTrue(set_cookie.has_key('cadbury'))
+        self.assertFalse(set_cookie.has_key('cottoncandy'))
+        self.assertFalse(set_cookie.has_key('coke'))
+        self.assertTrue(set_cookie.has_key('orange'))
+        self.assertTrue(set_cookie.has_key('grape'))
+
+        set_cookie = get_domain_cookie('http://www.another_test.com/sweet/tooth/')
+        self.assertTrue(set_cookie.has_key('chips_ahoy'))
+        self.assertTrue(set_cookie.has_key('cadbury'))
+        self.assertTrue(set_cookie.has_key('cottoncandy'))
+        self.assertFalse(set_cookie.has_key('coke'))
+        self.assertTrue(set_cookie.has_key('orange'))
+        self.assertTrue(set_cookie.has_key('grape'))
+
+        set_cookie = get_domain_cookie('http://www.another_test.com/soda/')
+        self.assertFalse(set_cookie.has_key('chips_ahoy'))
+        self.assertFalse(set_cookie.has_key('cadbury'))
+        self.assertFalse(set_cookie.has_key('cottoncandy'))
+        self.assertTrue(set_cookie.has_key('coke'))
+        self.assertTrue(set_cookie.has_key('orange'))
+        self.assertTrue(set_cookie.has_key('grape'))
+
+        set_cookie = get_domain_cookie('http://www.another_test.com')
+        self.assertFalse(set_cookie.has_key('chips_ahoy'))
+        self.assertFalse(set_cookie.has_key('cadbury'))
+        self.assertFalse(set_cookie.has_key('cottoncandy'))
+        self.assertFalse(set_cookie.has_key('coke'))
+        self.assertTrue(set_cookie.has_key('orange'))
+        self.assertTrue(set_cookie.has_key('grape'))
+
+        set_cookie = get_domain_cookie('http://www.another_test.com/')
+        self.assertFalse(set_cookie.has_key('chips_ahoy'))
+        self.assertFalse(set_cookie.has_key('cadbury'))
+        self.assertFalse(set_cookie.has_key('cottoncandy'))
+        self.assertFalse(set_cookie.has_key('coke'))
+        self.assertTrue(set_cookie.has_key('orange'))
+        self.assertTrue(set_cookie.has_key('grape'))
+
