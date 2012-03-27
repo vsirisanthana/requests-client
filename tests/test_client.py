@@ -9,7 +9,7 @@ from requests.models import Response
 from requests.utils import dict_from_string
 
 from .. import get
-from ..defaults import get_default_cache, set_default_cache, get_default_cookie_cache
+from ..defaults import get_default_cache, set_default_cache, get_default_cookie_cache, get_default_redirect_cache
 from .datetimestub import DatetimeStub
 
 
@@ -23,8 +23,11 @@ class TestClient(TestCase):
         self.cache.clear()
         self.cookie_cache = get_default_cookie_cache()
         self.cookie_cache.clear()
+        self.redirect_cache = get_default_redirect_cache()
+        self.redirect_cache.clear()
 
     def tearDown(self):
+        self.redirect_cache.clear()
         self.cookie_cache.clear()
         self.cache.clear()
         dummycache_cache.datetime = datetime
