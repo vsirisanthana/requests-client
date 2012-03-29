@@ -695,7 +695,7 @@ class TestClient(TestCase):
         response0.status_code = 200
         response0._content = 'Mocked response content'
         response0.headers = {
-            'set-cookie': 'name=value; domain=www.test.com, name2=value2;max-age=20'
+            'set-cookie': 'name=value;, name2=value2;max-age=20'
         }
         response0.cookies = dict_from_string(response0.headers['set-cookie'])
 
@@ -707,7 +707,7 @@ class TestClient(TestCase):
         response2.status_code = 200
         response2._content = 'Mocked response content'
         response2.headers = {
-            'set-cookie': 'other_name=value; domain=www.othertest.com, other_name2=value2;max-age=20'
+            'set-cookie': 'other_name=value;, other_name2=value2;max-age=20'
         }
         response2.cookies = dict_from_string(response0.headers['set-cookie'])
 
@@ -758,7 +758,7 @@ class TestClient(TestCase):
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
-            'set-cookie': 'other_name=value; expires=%s; domain=www.othertest.com, other_name2=value2;max-age=6' % expire_string
+            'set-cookie': 'other_name=value; expires=%s;, other_name2=value2;max-age=6' % expire_string
         }
         response.cookies = dict_from_string(response.headers['set-cookie'])
 
