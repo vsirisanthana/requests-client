@@ -11,10 +11,10 @@ from .datetimestub import DatetimeStub
 
 
 @patch('requests.get')
-class TestClient(TestCase):
+class TestAsync(TestCase):
 
     def setUp(self):
-        super(TestClient, self).setUp()
+        super(TestAsync, self).setUp()
         dummycache_cache.datetime = DatetimeStub()
         self.cache = get_default_cache()
         self.cache.clear()
@@ -22,7 +22,7 @@ class TestClient(TestCase):
     def tearDown(self):
         self.cache.clear()
         dummycache_cache.datetime = datetime
-        super(TestClient, self).tearDown()
+        super(TestAsync, self).tearDown()
 
     def test_get(self, mock_get):
         # Setup mock
