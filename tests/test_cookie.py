@@ -86,9 +86,9 @@ class TestCookie(TestCase):
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
-            'set-cookie': 'chips_ahoy=cookie; expires=%s;, cadbury=chocolate;max-age=3;, coke=soda; expires=%s; max-age=5' % (expire_string, expire_string)
+            'Set-Cookie': 'chips_ahoy=cookie; expires=%s;, cadbury=chocolate;max-age=3;, coke=soda; expires=%s; max-age=5' % (expire_string, expire_string)
         }
-        response.cookies = dict_from_string(response.headers['set-cookie'])
+        response.cookies = dict_from_string(response.headers['Set-Cookie'])
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 
@@ -142,13 +142,13 @@ class TestCookie(TestCase):
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
-            'set-cookie': 'chips_ahoy=cookie; expires=%s; path="/sweet", ' \
+            'Set-Cookie': 'chips_ahoy=cookie; expires=%s; path="/sweet", ' \
                           'cadbury=chocolate;max-age=3; path="/sweet/", ' \
                           'coke=soda; path="/soda/"; expires=%s; max-age=5;, '\
                           'cottoncandy=soft; path="/sweet/tooth/";, '\
                           'orange=fruit;, grape=sweet; path="/";' % (expire_string, expire_string)
         }
-        response.cookies = dict_from_string(response.headers['set-cookie'])
+        response.cookies = dict_from_string(response.headers['Set-Cookie'])
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 
@@ -211,9 +211,9 @@ class TestCookie(TestCase):
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
-            'set-cookie': 'chips_ahoy=cookie; domain=sweet.another_test.com;, cadbury=chocolate; domain=sweet.another_test.com; coke=soda;'
+            'Set-Cookie': 'chips_ahoy=cookie; domain=sweet.another_test.com;, cadbury=chocolate; domain=sweet.another_test.com; coke=soda;'
         }
-        response.cookies = dict_from_string(response.headers['set-cookie'])
+        response.cookies = dict_from_string(response.headers['Set-Cookie'])
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 

@@ -57,7 +57,7 @@ class CookieManager(object):
         return  set_cookie
 
     def extract_cookie(self, url, response):
-        #if there's set-cookie in response
+        #if there's Set-Cookie in response
         if response and response.cookies:
             origin = urlparse(url).netloc
             #if there's not cookie for this domain, create one
@@ -66,7 +66,7 @@ class CookieManager(object):
                 self.cache.set(origin,set())
             origin_cookies = self.cache.get(origin)
             cookie = SimpleCookie()
-            cookie.load(response.headers['set-cookie'])
+            cookie.load(response.headers['Set-Cookie'])
             for name, c in cookie.items():
                 cookie_name = '%s.%s' % (origin, name)
                 max_age = None
