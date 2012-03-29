@@ -14,10 +14,10 @@ from .datetimestub import DatetimeStub
 
 
 @patch('requests.get')
-class TestClient(TestCase):
+class TestApi(TestCase):
 
     def setUp(self):
-        super(TestClient, self).setUp()
+        super(TestApi, self).setUp()
         dummycache_cache.datetime = DatetimeStub()
         self.cache = get_default_cache()
         self.cache.clear()
@@ -31,7 +31,7 @@ class TestClient(TestCase):
         self.cookie_cache.clear()
         self.cache.clear()
         dummycache_cache.datetime = datetime
-        super(TestClient, self).tearDown()
+        super(TestApi, self).tearDown()
 
     def test_get_max_age(self, mock_get):
         response = Response()
