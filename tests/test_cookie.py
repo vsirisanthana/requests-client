@@ -6,9 +6,9 @@ from requests.models import Response
 from requests.utils import dict_from_string
 from dummycache import cache as dummycache_cache
 
-from dogbutler.cookie import get_domain_cookie, extract_cookie
-from dogbutler.default_cache import get_default_cache
-from dogbutler.tests.datetimestub import DatetimeStub
+from ..cookie import get_domain_cookie, extract_cookie
+from ..defaults import get_default_cookie_cache
+from .datetimestub import DatetimeStub
 
 
 class TestCookie(TestCase):
@@ -16,7 +16,7 @@ class TestCookie(TestCase):
     def setUp(self):
         super(TestCookie, self).setUp()
         dummycache_cache.datetime = DatetimeStub()
-        self.cache = get_default_cache()
+        self.cache = get_default_cookie_cache()
         self.cache.clear()
         # prepare cookie
         self.cookies = SimpleCookie()
@@ -218,7 +218,7 @@ class TestCookie(TestCase):
         extract_cookie('http://www.another_test.com', response)
 
         #assert that cookie for domain is there
-        sweet_domain_name_list = cache.get('sweet.another_test.com')
+        sweet_domain_name_list = self.cache.get('sweet.another_test.com')
         self.assertIsNotNone(sweet_domain_name_list)
         self.assertEqual(set(['sweet.another_test.com.chips_ahoy', 'sweet.another_test.com.cadbury']), sweet_domain_name_list)
 

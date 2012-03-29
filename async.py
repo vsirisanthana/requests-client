@@ -1,7 +1,7 @@
 from Queue import Queue
 from threading import Thread
 
-import api
+from . import api
 
 
 DEFAULT_TIMEOUT = 60 * 5    # in seconds
