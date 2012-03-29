@@ -1,0 +1,5 @@
+coverage
+dummycache
+mock
+nose
+requests
