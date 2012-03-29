@@ -203,3 +203,31 @@ class TestCookie(TestCase):
         self.assertTrue(set_cookie.has_key('orange'))
         self.assertTrue(set_cookie.has_key('grape'))
 
+
+    def test_extract_cookie_for_domain_attribute(self):
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'set-cookie': 'chips_ahoy=cookie; domain=sweet.another_test.com;, cadbury=chocolate; domain=sweet.another_test.com; coke=soda;'
+        }
+        response.cookies = dict_from_string(response.headers['set-cookie'])
+
+        self.assertIsNone(self.cache.get('www.another_test.com'))
+
+        extract_cookie('http://www.another_test.com', response)
+
+        #assert that cookie for domain is there
+        sweet_domain_name_list = self.cache.get('sweet.another_test.com')
+        self.assertIsNotNone(sweet_domain_name_list)
+        self.assertEqual(set(['sweet.another_test.com.chips_ahoy', 'sweet.another_test.com.cadbury']), sweet_domain_name_list)
+
+        chips_ahoy = self.cache.get('sweet.another_test.com.chips_ahoy')
+        self.assertIsNotNone(chips_ahoy)
+        self.assertEqual('chips_ahoy', chips_ahoy.key)
+        self.assertEqual('cookie', chips_ahoy.value)
+
+        origin_name_list = self.cache.get('www.another_test.com')
+        self.assertIsNotNone(origin_name_list)
+        self.assertEqual(set(['www.another_test.com.coke']), origin_name_list)
+
