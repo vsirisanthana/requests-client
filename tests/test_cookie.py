@@ -6,7 +6,7 @@ from requests.models import Response
 from requests.utils import dict_from_string
 from dummycache import cache as dummycache_cache
 
-from ..cookie import get_domain_cookie, extract_cookie
+from ..cookie import CookieManager
 from ..defaults import get_default_cookie_cache
 from .datetimestub import DatetimeStub
 
@@ -18,6 +18,8 @@ class TestCookie(TestCase):
         dummycache_cache.datetime = DatetimeStub()
         self.cache = get_default_cookie_cache()
         self.cache.clear()
+        self.cookie_manager = CookieManager(key_prefix='test_cookie', cache=self.cache)
+
         # prepare cookie
         self.cookies = SimpleCookie()
         self.cookies['oreo'] = 'yumm'
@@ -39,7 +41,7 @@ class TestCookie(TestCase):
 
     def test_get_domain_cookie(self):
         # start testing our get domain cookie
-        set_cookie = get_domain_cookie('http://www.test.com/somepath')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.test.com/somepath')
         self.assertTrue(set_cookie.has_key('oreo'))
         self.assertTrue(set_cookie.has_key('twix'))
         self.assertEqual(set_cookie['oreo'], self.cookies['oreo'].value)
@@ -55,7 +57,7 @@ class TestCookie(TestCase):
 
         # 3 seconds pass by
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=3)
-        set_cookie = get_domain_cookie('http://www.test.com/somepath')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.test.com/somepath')
         self.assertEqual(len(set_cookie), 1)
         self.assertTrue(set_cookie.has_key('oreo'))
         self.assertFalse(set_cookie.has_key('twix'))
@@ -68,7 +70,7 @@ class TestCookie(TestCase):
 
         # 3 more seconds so all cookie should expired now
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=6)
-        set_cookie = get_domain_cookie('http://www.test.com/somepath')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.test.com/somepath')
         self.assertEqual(len(set_cookie), 0)
         self.assertFalse(set_cookie.has_key('oreo'))
         self.assertFalse(set_cookie.has_key('twix'))
@@ -90,7 +92,7 @@ class TestCookie(TestCase):
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 
-        extract_cookie('http://www.another_test.com', response)
+        self.cookie_manager.extract_cookie('http://www.another_test.com', response)
 
         #assert that cookie for domain is there
         name_list = self.cache.get('www.another_test.com')
@@ -150,11 +152,11 @@ class TestCookie(TestCase):
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 
-        extract_cookie('http://www.another_test.com', response)
+        self.cookie_manager.extract_cookie('http://www.another_test.com', response)
 
         self.assertIsNotNone(self.cache.get('www.another_test.com'))
 
-        set_cookie = get_domain_cookie('http://www.another_test.com/sweetxxx/')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.another_test.com/sweetxxx/')
         self.assertFalse(set_cookie.has_key('chips_ahoy'))
         self.assertFalse(set_cookie.has_key('cadbury'))
         self.assertFalse(set_cookie.has_key('cottoncandy'))
@@ -163,7 +165,7 @@ class TestCookie(TestCase):
         self.assertTrue(set_cookie.has_key('grape'))
 
 
-        set_cookie = get_domain_cookie('http://www.another_test.com/sweet/')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.another_test.com/sweet/')
         self.assertTrue(set_cookie.has_key('chips_ahoy'))
         self.assertTrue(set_cookie.has_key('cadbury'))
         self.assertFalse(set_cookie.has_key('cottoncandy'))
@@ -171,7 +173,7 @@ class TestCookie(TestCase):
         self.assertTrue(set_cookie.has_key('orange'))
         self.assertTrue(set_cookie.has_key('grape'))
 
-        set_cookie = get_domain_cookie('http://www.another_test.com/sweet/tooth/')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.another_test.com/sweet/tooth/')
         self.assertTrue(set_cookie.has_key('chips_ahoy'))
         self.assertTrue(set_cookie.has_key('cadbury'))
         self.assertTrue(set_cookie.has_key('cottoncandy'))
@@ -179,7 +181,7 @@ class TestCookie(TestCase):
         self.assertTrue(set_cookie.has_key('orange'))
         self.assertTrue(set_cookie.has_key('grape'))
 
-        set_cookie = get_domain_cookie('http://www.another_test.com/soda/')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.another_test.com/soda/')
         self.assertFalse(set_cookie.has_key('chips_ahoy'))
         self.assertFalse(set_cookie.has_key('cadbury'))
         self.assertFalse(set_cookie.has_key('cottoncandy'))
@@ -187,7 +189,7 @@ class TestCookie(TestCase):
         self.assertTrue(set_cookie.has_key('orange'))
         self.assertTrue(set_cookie.has_key('grape'))
 
-        set_cookie = get_domain_cookie('http://www.another_test.com')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.another_test.com')
         self.assertFalse(set_cookie.has_key('chips_ahoy'))
         self.assertFalse(set_cookie.has_key('cadbury'))
         self.assertFalse(set_cookie.has_key('cottoncandy'))
@@ -195,7 +197,7 @@ class TestCookie(TestCase):
         self.assertTrue(set_cookie.has_key('orange'))
         self.assertTrue(set_cookie.has_key('grape'))
 
-        set_cookie = get_domain_cookie('http://www.another_test.com/')
+        set_cookie = self.cookie_manager.get_domain_cookie('http://www.another_test.com/')
         self.assertFalse(set_cookie.has_key('chips_ahoy'))
         self.assertFalse(set_cookie.has_key('cadbury'))
         self.assertFalse(set_cookie.has_key('cottoncandy'))
@@ -215,7 +217,7 @@ class TestCookie(TestCase):
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 
-        extract_cookie('http://www.another_test.com', response)
+        self.cookie_manager.extract_cookie('http://www.another_test.com', response)
 
         #assert that cookie for domain is there
         sweet_domain_name_list = self.cache.get('sweet.another_test.com')
