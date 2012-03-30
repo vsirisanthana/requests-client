@@ -84,9 +84,9 @@ class TestCookie(TestCase):
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
-            'set-cookie': 'chips_ahoy=cookie; expires=%s;, cadbury=chocolate;max-age=3;, coke=soda; expires=%s; max-age=5' % (expire_string, expire_string)
+            'Set-Cookie': 'chips_ahoy=cookie; expires=%s;, cadbury=chocolate;max-age=3;, coke=soda; expires=%s; max-age=5' % (expire_string, expire_string)
         }
-        response.cookies = dict_from_string(response.headers['set-cookie'])
+        response.cookies = dict_from_string(response.headers['Set-Cookie'])
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 
@@ -140,13 +140,13 @@ class TestCookie(TestCase):
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
-            'set-cookie': 'chips_ahoy=cookie; expires=%s; path="/sweet", ' \
+            'Set-Cookie': 'chips_ahoy=cookie; expires=%s; path="/sweet", ' \
                           'cadbury=chocolate;max-age=3; path="/sweet/", ' \
                           'coke=soda; path="/soda/"; expires=%s; max-age=5;, '\
                           'cottoncandy=soft; path="/sweet/tooth/";, '\
                           'orange=fruit;, grape=sweet; path="/";' % (expire_string, expire_string)
         }
-        response.cookies = dict_from_string(response.headers['set-cookie'])
+        response.cookies = dict_from_string(response.headers['Set-Cookie'])
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 
@@ -209,9 +209,9 @@ class TestCookie(TestCase):
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
-            'set-cookie': 'chips_ahoy=cookie; domain=sweet.another_test.com;, cadbury=chocolate; domain=sweet.another_test.com; coke=soda;'
+            'Set-Cookie': 'chips_ahoy=cookie; domain=sweet.another_test.com;, cadbury=chocolate; domain=sweet.another_test.com; coke=soda;'
         }
-        response.cookies = dict_from_string(response.headers['set-cookie'])
+        response.cookies = dict_from_string(response.headers['Set-Cookie'])
 
         self.assertIsNone(self.cache.get('www.another_test.com'))
 
@@ -230,4 +230,44 @@ class TestCookie(TestCase):
         origin_name_list = self.cache.get('www.another_test.com')
         self.assertIsNotNone(origin_name_list)
         self.assertEqual(set(['www.another_test.com.coke']), origin_name_list)
+
+
+    def test_cookie_no_dashed_expires_date_format(self):
+        """
+        SimpleCookie.loads recognize only dashed date style format, this is to make sure that if server send a new date
+        format
+        """
+        response = Response()
+        response.status_code = 200
+        response._content = 'Mocked response content'
+        response.headers = {
+            'Set-Cookie': 'chips_ahoy=cookie; expires=Thu, 12 Jan 2013 12:34:22 GMT;, '
+                          'cadbury=chocolate; Expires=Wed, 20-Feb-2014 08:23:55 GMT;, '
+                          'coke=soda; Expires = Fri, 02 Jan 2021 GMT;'
+        }
+
+        extract_cookie('http://www.test.com', response)
+
+        chips_ahoy = self.cache.get('www.test.com.chips_ahoy')
+        self.assertIsNotNone(chips_ahoy)
+        self.assertEqual('chips_ahoy', chips_ahoy.key)
+        self.assertEqual('cookie', chips_ahoy.value)
+        self.assertEqual('Thu, 12-Jan-2013 12:34:22 GMT', chips_ahoy['expires'])
+
+        cadbury = self.cache.get('www.test.com.cadbury')
+        self.assertIsNotNone(cadbury)
+        self.assertEqual('cadbury', cadbury.key)
+        self.assertEqual('chocolate', cadbury.value)
+        self.assertEqual('Wed, 20-Feb-2014 08:23:55 GMT', cadbury['expires'])
+
+        # cookie with wrong expires format won't get stored!
+        coke = self.cache.get('www.test.com.coke')
+        self.assertIsNotNone(coke)
+        self.assertEqual('coke', coke.key)
+        self.assertEqual('soda', coke.value)
+        self.assertEqual('', coke['expires'])
+
+
+
+
 
