@@ -2,6 +2,32 @@ from Cookie import SimpleCookie
 from datetime import datetime
 from urlparse import urlparse
 
+
+ORIGIN_KEY_PREFIX = 'origin'
+
+
+def get_max_age(cookie):
+    max_age = None
+    # convert expires to seconds, so we use take advantage of cache expiry feature,
+    # no need to clear cookie ourselves
+    if cookie['expires']:
+        fmt = '%a, %d-%b-%Y %H:%M:%S GMT'
+        expired  = datetime.strptime(cookie['expires'], fmt)
+        now = datetime.utcnow()
+        max_age = (expired - now).total_seconds()
+
+    # max-age has higher priority than  expires
+    if cookie['max-age']:
+        max_age = int(cookie['max-age'])
+    return max_age
+
+def normalize_domain(domain):
+    return domain.lstrip('.')
+
+def normalize_path(path):
+    return path.rstip('/') if path != '/' else path
+
+
 class CookieManager(object):
 
     def __init__(self, key_prefix, cache):
@@ -9,10 +35,82 @@ class CookieManager(object):
         self.cache = cache
 
     def process_request(self, request):
-        request.cookies = self.get_domain_cookie(request.url) or dict()
+        """
+        Set 'Cookie' header in request
+        """
+        request.cookies = self.get_cookies(request.url)
 
     def process_response(self, request, response):
-        self.extract_cookie(request.url, response)
+        """
+        Process 'Set-Cookie' header in response
+        """
+        if response and response.has_header('Set-Cookie'):
+            origin = urlparse(response.url).netloc
+            cookies = SimpleCookie()
+            cookies.load(response.headers['Set-Cookie'])
+            for name, cookie in cookies.items():
+                domain = cookie['domain']
+                if not domain:
+                    self.set_origin_cookie(origin, cookie)
+                else:
+                    self.set_domain_cookie(cookie)
+
+    def get_domain_cookie_key(self, domain, path, name):
+        return '%s.%s.%s.%s' % (self.key_prefix, normalize_domain(domain), path, name)
+
+    def get_domain_cookie_lookup_key(self, domain):
+        return '%s.%s' % (self.key_prefix, domain)
+
+    def get_origin_cookie_key(self, origin, path, name):
+        return '%s.%s.%s.%s.%s' % (self.key_prefix, ORIGIN_KEY_PREFIX, normalize_domain(origin), path, name)
+
+    def get_origin_cookie_lookup_key(self, origin):
+        return '%s.%s.%s' % (self.key_prefix, ORIGIN_KEY_PREFIX, origin)
+
+    def get_cookies(self, url):
+        """
+        Return a dictionary (key:value) of cookies for the given URL
+        """
+        domain = urlparse(url).netloc
+        domain_parts = domain.split('.')
+        path = urlparse(url).path
+        cookies = self.get_origin_cookies(domain, path)
+        for i in reversed(range(len(domain_parts))):
+            d = '.'.join(domain_parts[i:])
+            c = self.get_domain_cookies(d, path)
+            cookies.update(c)
+        return cookies
+
+    def get_domain_cookies(self, domain, path):
+        """
+        Return a dictionary (key:value) of domain cookies
+        """
+        return self.get_xxx_cookies(self.get_domain_cookie_lookup_key, domain, path)
+
+    def get_origin_cookies(self, domain, path):
+        """
+        Return a dictionary (key:value) of origin cookies
+        """
+        return self.get_xxx_cookies(self.get_origin_cookie_lookup_key, domain, path)
+
+    def get_xxx_cookies(self, get_lookup_key_fn, domain, path):
+        """
+        Return a dictionary (key:value) of xxx cookies
+        """
+        lookup_key = get_lookup_key_fn(domain)
+        cookie_keys_set = self.cache.get(lookup_key) or set()
+        cookies = {}
+        expired_cookie_keys_set = set()
+        if cookie_keys_set:
+            for cookie_key in cookie_keys_set:
+                cookie = self.cache.get(cookie_key)
+                if cookie:
+                    if self._path_ok(cookie, path):
+                        cookies[cookie.key] = cookie.value
+                else:
+                    expired_cookie_keys_set.add(cookie_key)
+        self.cache.set(lookup_key, cookie_keys_set.difference(expired_cookie_keys_set))
+        return cookies
 
     def _path_ok(self, cookie, url):
         if not cookie['path']:
@@ -34,72 +132,35 @@ class CookieManager(object):
         else:
             return False
 
-    def get_domain_cookie(self, url):
+    def set_domain_cookie(self, cookie):
         """
-        return simple dictionary of (key:value) cookies for domain
+        Set domain cookie (i.e. cookie that has Domain attribute) in cache.
         """
-        domain = urlparse(url).netloc
-        set_cookie = {}
-        expired_cookie = set()
-        if self.cache.get(domain):
-            domain_cookies = self.cache.get(domain)
-            for cookie_name in domain_cookies:
-                cookie = self.cache.get(cookie_name)
-                if cookie:
-                    if self._path_ok(cookie, url):
-                        set_cookie.update({cookie.key: cookie.value})
-                else:
-                    expired_cookie.add(cookie_name)
+        domain = cookie['domain']
+        max_age = get_max_age(cookie)
+        name = cookie.key
+        path = cookie['path']
 
-            updated_domain_cookies = domain_cookies.difference(expired_cookie)
-            self.cache.set(domain, updated_domain_cookies)
+        cookie_key = self.get_domain_cookie_key(domain, path, name)
+        lookup_key = self.get_domain_cookie_lookup_key(domain)
+        self.cache.set(cookie_key, cookie, max_age)
 
-        return  set_cookie
+        cookie_keys_set = self.cache.get(lookup_key) or set()
+        cookie_keys_set.add(cookie_key)
+        self.cache.set(lookup_key, cookie_keys_set)
 
-    def extract_cookie(self, url, response):
-        #if there's Set-Cookie in response
-        if response and response.cookies:
-            origin = urlparse(url).netloc
-            #if there's not cookie for this domain, create one
+    def set_origin_cookie(self, origin, cookie):
+        """
+        Set origin cookie (i.e. cookie that does not have Domain attribute) in cache.
+        """
+        max_age = get_max_age(cookie)
+        name = cookie.key
+        path = cookie['path']
 
-            if not self.cache.get(origin):
-                self.cache.set(origin,set())
-            origin_cookies = self.cache.get(origin)
-            cookie = SimpleCookie()
-            cookie.load(response.headers['Set-Cookie'])
-            for name, c in cookie.items():
-                cookie_name = '%s.%s' % (origin, name)
-                max_age = None
-                # convert expires to seconds, so we use take advantage of cache expiry feature,
-                # no need to clear cookie ourselves
-                if c['expires']:
-                    fmt = '%a, %d-%b-%Y %H:%M:%S GMT'
-                    expired  = datetime.strptime(c['expires'], fmt)
-                    now = datetime.utcnow()
-                    max_age = (expired - now).total_seconds()
+        cookie_key = self.get_origin_cookie_key(origin, path, name)
+        lookup_key = self.get_origin_cookie_lookup_key(origin)
+        self.cache.set(cookie_key, cookie, max_age)
 
-                # max-age has higher priority than  expires
-                if c['max-age']:
-                    max_age = int(c['max-age'])
-
-                domain = c['domain']
-                if domain:
-                    if not self.cache.get(domain):
-                        self.cache.set(domain, set())
-                    cookie_name = '%s.%s' % (domain,name)
-                    domain_cookies = self.cache.get(c['domain'])
-                    domain_cookies.add(cookie_name)
-
-                # save morsel (cookie info) in cache :) if max_age < 0, the key is deleted
-                if max_age is not None:
-                    self.cache.set(cookie_name, c, max_age)
-                else:
-                    self.cache.set(cookie_name, c)
-
-                #update lookup cache
-                if domain:
-                    self.cache.set(domain, domain_cookies)
-                else:
-                    origin_cookies.add(cookie_name)
-
-            self.cache.set(origin, origin_cookies)
+        cookie_keys_set = self.cache.get(lookup_key) or set()
+        cookie_keys_set.add(cookie_key)
+        self.cache.set(lookup_key, cookie_keys_set)
