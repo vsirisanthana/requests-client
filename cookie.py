@@ -1,5 +1,6 @@
 from Cookie import SimpleCookie
 from datetime import datetime
+import re
 from urlparse import urlparse
 
 from .defaults import get_default_cookie_cache
@@ -49,18 +50,29 @@ def get_domain_cookie(url):
     return  set_cookie
 
 
+def _make_cookie(cookie_headers):
+    def _add_dash(match_obj):
+        return match_obj.group(0).replace(' ', '-')
+
+    cookie = SimpleCookie()
+    set_cookie_str = re.sub(r'\d{2}\s\w+\s\d{4}', _add_dash, cookie_headers)
+    cookie.load(set_cookie_str)
+
+    return  cookie
+
 def extract_cookie(url, response):
     cache = get_default_cookie_cache()
     #if there's set-cookie in response
-    if response and response.cookies:
+    if response and response.headers.has_key('Set-Cookie'):
         origin = urlparse(url).netloc
         #if there's not cookie for this domain, create one
 
         if not cache.get(origin):
             cache.set(origin,set())
         origin_cookies = cache.get(origin)
-        cookie = SimpleCookie()
-        cookie.load(response.headers['set-cookie'])
+
+        cookie = _make_cookie(response.headers['Set-Cookie'])
+
         for name, c in cookie.items():
             cookie_name = '%s.%s' % (origin, name)
             max_age = None
@@ -68,9 +80,14 @@ def extract_cookie(url, response):
             # no need to clear cookie ourselves
             if c['expires']:
                 fmt = '%a, %d-%b-%Y %H:%M:%S GMT'
-                expired  = datetime.strptime(c['expires'], fmt)
-                now = datetime.utcnow()
-                max_age = (expired - now).total_seconds()
+                try:
+                    expired  = datetime.strptime(c['expires'], fmt)
+                    now = datetime.utcnow()
+                    max_age = (expired - now).total_seconds()
+                except ValueError:
+                    # if cookie has wrong date format we ignore the expires
+                    c['expires'] = ''
+                    max_age = None
 
             # max-age has higher priority than  expires
             if c['max-age']:

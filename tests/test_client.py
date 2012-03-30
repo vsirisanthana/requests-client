@@ -695,9 +695,9 @@ class TestClient(TestCase):
         response0.status_code = 200
         response0._content = 'Mocked response content'
         response0.headers = {
-            'set-cookie': 'name=value;, name2=value2;max-age=20'
+            'Set-Cookie': 'name=value;, name2=value2;max-age=20'
         }
-        response0.cookies = dict_from_string(response0.headers['set-cookie'])
+        response0.cookies = dict_from_string(response0.headers['Set-Cookie'])
 
         response1 = Response()
         response1.status_code = 200
@@ -707,17 +707,17 @@ class TestClient(TestCase):
         response2.status_code = 200
         response2._content = 'Mocked response content'
         response2.headers = {
-            'set-cookie': 'other_name=value;, other_name2=value2;max-age=20'
+            'Set-Cookie': 'other_name=value;, other_name2=value2;max-age=20'
         }
-        response2.cookies = dict_from_string(response0.headers['set-cookie'])
+        response2.cookies = dict_from_string(response0.headers['Set-Cookie'])
 
         response3 = Response()
         response3.status_code = 200
         response3._content = 'Mocked response content'
         response3.headers = {
-            'set-cookie': 'name3=value3; domain=www.test.com'
+            'Set-Cookie': 'name3=value3; domain=www.test.com'
         }
-        response3.cookies = dict_from_string(response0.headers['set-cookie'])
+        response3.cookies = dict_from_string(response0.headers['Set-Cookie'])
 
         mock_get.side_effect = [response0, response3, response0, response1, response2, response2, response0]
 
@@ -758,9 +758,9 @@ class TestClient(TestCase):
         response.status_code = 200
         response._content = 'Mocked response content'
         response.headers = {
-            'set-cookie': 'other_name=value; expires=%s;, other_name2=value2;max-age=6' % expire_string
+            'Set-Cookie': 'other_name=value; expires=%s;, other_name2=value2;max-age=6' % expire_string
         }
-        response.cookies = dict_from_string(response.headers['set-cookie'])
+        response.cookies = dict_from_string(response.headers['Set-Cookie'])
 
 
         mock_get.return_value = response
