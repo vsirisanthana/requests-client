@@ -1,235 +1,577 @@
-from Cookie import SimpleCookie, _getdate
+from Cookie import _getdate
 from datetime import datetime, timedelta
-from unittest import TestCase
 
-from requests.models import Response
-from requests.utils import dict_from_string
 from dummycache import cache as dummycache_cache
+from requests.models import Response
 
-from ..cookie import get_domain_cookie, extract_cookie
-from ..defaults import get_default_cookie_cache
-from .datetimestub import DatetimeStub
+from ..cookie import CookieManager
+from ..models import Request
+from .base import BaseTestCase
 
 
-class TestCookie(TestCase):
+class TestCookie(BaseTestCase):
 
     def setUp(self):
         super(TestCookie, self).setUp()
-        dummycache_cache.datetime = DatetimeStub()
-        self.cache = get_default_cookie_cache()
-        self.cache.clear()
-        # prepare cookie
-        self.cookies = SimpleCookie()
-        self.cookies['oreo'] = 'yumm'
-        self.cookies['oreo']['max-age']= 5
-        self.cookies['twix'] = 'yumm yummm'
-        self.cookies['twix']['max-age']= 3
-        self.name_set = set()
-        for cookie_name, cookie in self.cookies.items():
-            name = 'www.test.com.%s' % cookie_name
-            self.name_set.add(name)
-            self.cache.set(name, cookie, int(cookie['max-age']))
+        self.cookie_manager = CookieManager(key_prefix='test_cookie', cache=self.cookie_cache)
 
-        self.cache.set('www.test.com', self.name_set)
 
-    def tearDown(self):
-        self.cache.clear()
-        dummycache_cache.datetime = datetime
-        super(TestCookie, self).tearDown()
+    def test_domain_cookies(self):
+        """
+        Test setting and getting domain cookies
+        """
 
-    def test_get_domain_cookie(self):
-        # start testing our get domain cookie
-        set_cookie = get_domain_cookie('http://www.test.com/somepath')
-        self.assertTrue(set_cookie.has_key('oreo'))
-        self.assertTrue(set_cookie.has_key('twix'))
-        self.assertEqual(set_cookie['oreo'], self.cookies['oreo'].value)
-        self.assertEqual(set_cookie['twix'], self.cookies['twix'].value)
+        # Cookie cache keys for convenience
+        chipsahoy_key   = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'chipsahoy')
+        cadbury_key     = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'cadbury')
+        kfc_key         = self.cookie_manager.get_domain_cookie_key('food.test.com', '', 'kfc')
+        happymeal_key   = self.cookie_manager.get_domain_cookie_key('test.com', '', 'happymeal')
 
-        cookie_name_list = self.cache.get('www.test.com')
-        self.assertEquals(len(cookie_name_list), 2)
-        self.assertIn('www.test.com.oreo', cookie_name_list)
-        self.assertIn('www.test.com.twix', cookie_name_list)
-        self.assertEqual(cookie_name_list, self.name_set)
+        # Prepare test response
+        response = Response()
+        response.headers = {
+            'Set-Cookie': 'chipsahoy=cookie; Domain=sweet.test.com;, ' +
+                          'cadbury=chocolate; Domain=sweet.test.com;, ' +
+                          'kfc=chicken; Domain=food.test.com;, ' +
+                          'happymeal=meal; Domain=test.com;, '
+        }
+        response.url = 'http://www.test.com/path'
 
-    def test_get_domain_update_cookie_list_when_cookie_expired(self):
+
+        ##### Process response cookies #####
+        self.cookie_manager.process_response(None, response)    # Note that 'request' is not used (thus None param)
+
+        # Test sweet.test.com cache
+        sweet_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('sweet.test.com'))
+        self.assertIsNotNone(sweet_test_com_cookie_keys_set)
+        self.assertEqual(sweet_test_com_cookie_keys_set, set([chipsahoy_key, cadbury_key]))
+
+        chipsahoy_cookie = self.cookie_cache.get(chipsahoy_key)
+        self.assertIsNotNone(chipsahoy_cookie)
+        self.assertEqual(chipsahoy_cookie.key, 'chipsahoy')
+        self.assertEqual(chipsahoy_cookie.value, 'cookie')
+        self.assertEqual(chipsahoy_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(chipsahoy_cookie['path'], '')
+
+        cadbury_cookie = self.cookie_cache.get(cadbury_key)
+        self.assertIsNotNone(cadbury_cookie)
+        self.assertEqual(cadbury_cookie.key, 'cadbury')
+        self.assertEqual(cadbury_cookie.value, 'chocolate')
+        self.assertEqual(cadbury_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(cadbury_cookie['path'], '')
+
+        # Test food.test.com cache
+        food_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('food.test.com'))
+        self.assertIsNotNone(food_test_com_cookie_keys_set)
+        self.assertEqual(food_test_com_cookie_keys_set, set([kfc_key]))
+
+        kfc_cookie = self.cookie_cache.get(kfc_key)
+        self.assertIsNotNone(kfc_cookie)
+        self.assertEqual(kfc_cookie.key, 'kfc')
+        self.assertEqual(kfc_cookie.value, 'chicken')
+        self.assertEqual(kfc_cookie['domain'], 'food.test.com')
+        self.assertEqual(kfc_cookie['path'], '')
+
+        # Test test.com cache
+        test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('test.com'))
+        self.assertIsNotNone(test_com_cookie_keys_set)
+        self.assertEqual(test_com_cookie_keys_set, set([happymeal_key]))
+
+        happymeal_cookie = self.cookie_cache.get(happymeal_key)
+        self.assertIsNotNone(happymeal_cookie)
+        self.assertEqual(happymeal_cookie.key, 'happymeal')
+        self.assertEqual(happymeal_cookie.value, 'meal')
+        self.assertEqual(happymeal_cookie['domain'], 'test.com')
+        self.assertEqual(happymeal_cookie['path'], '')
+
+
+        ##### Process request #####
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie', 'cadbury': 'chocolate', 'happymeal': 'meal'})
+
+        request = Request('http://food.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'kfc': 'chicken', 'happymeal': 'meal'})
+
+        request = Request('http://test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'happymeal': 'meal'})
+
+
+    def test_weird_domain_cookies(self):
+        """
+        Test setting and getting domain cookies with weird domain
+        """
+
+        # Cookie cache keys for convenience
+        chipsahoy_key   = self.cookie_manager.get_domain_cookie_key('.sweet.test.com', '', 'chipsahoy')
+        cadbury_key     = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'cadbury')
+        kfc_key         = self.cookie_manager.get_domain_cookie_key('..food.test.com', '', 'kfc')
+        happymeal_key   = self.cookie_manager.get_domain_cookie_key('.test.com', '', 'happymeal')
+
+        # Prepare test response
+        response = Response()
+        response.headers = {
+            'Set-Cookie': 'chipsahoy=cookie; Domain=.sweet.test.com;, ' +       # Leading . should be ignored
+                          'cadbury=chocolate; Domain=sweet.test.com;, ' +
+                          'kfc=chicken; Domain=..food.test.com;, ' +            # Leading . should be ignored
+                          'happymeal=meal; Domain=.test.com;, ' +               # Leading . should be ignored
+                          'baskin=icecream; Domain=food.test.com.'              # Trailing . makes cookie invalid
+        }
+        response.url = 'http://www.test.com/path'
+
+
+        ##### Process response cookies #####
+        self.cookie_manager.process_response(None, response)    # Note that 'request' is not used (thus None param)
+
+        # Test sweet.test.com cache
+        sweet_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('sweet.test.com'))
+        self.assertIsNotNone(sweet_test_com_cookie_keys_set)
+        self.assertEqual(sweet_test_com_cookie_keys_set, set([chipsahoy_key, cadbury_key]))
+
+        chipsahoy_cookie = self.cookie_cache.get(chipsahoy_key)
+        self.assertIsNotNone(chipsahoy_cookie)
+        self.assertEqual(chipsahoy_cookie.key, 'chipsahoy')
+        self.assertEqual(chipsahoy_cookie.value, 'cookie')
+        self.assertEqual(chipsahoy_cookie['domain'], '.sweet.test.com')
+        self.assertEqual(chipsahoy_cookie['path'], '')
+
+        cadbury_cookie = self.cookie_cache.get(cadbury_key)
+        self.assertIsNotNone(cadbury_cookie)
+        self.assertEqual(cadbury_cookie.key, 'cadbury')
+        self.assertEqual(cadbury_cookie.value, 'chocolate')
+        self.assertEqual(cadbury_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(cadbury_cookie['path'], '')
+
+        # Test food.test.com cache
+        food_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('food.test.com'))
+        self.assertIsNotNone(food_test_com_cookie_keys_set)
+        self.assertEqual(food_test_com_cookie_keys_set, set([kfc_key]))
+
+        kfc_cookie = self.cookie_cache.get(kfc_key)
+        self.assertIsNotNone(kfc_cookie)
+        self.assertEqual(kfc_cookie.key, 'kfc')
+        self.assertEqual(kfc_cookie.value, 'chicken')
+        self.assertEqual(kfc_cookie['domain'], '..food.test.com')
+        self.assertEqual(kfc_cookie['path'], '')
+
+        # Test test.com cache
+        test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('test.com'))
+        self.assertIsNotNone(test_com_cookie_keys_set)
+        self.assertEqual(test_com_cookie_keys_set, set([happymeal_key]))
+
+        happymeal_cookie = self.cookie_cache.get(happymeal_key)
+        self.assertIsNotNone(happymeal_cookie)
+        self.assertEqual(happymeal_cookie.key, 'happymeal')
+        self.assertEqual(happymeal_cookie.value, 'meal')
+        self.assertEqual(happymeal_cookie['domain'], '.test.com')
+        self.assertEqual(happymeal_cookie['path'], '')
+
+        # Test food.test.com. cache. There should be no cache.
+        food_test_com_dot_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('food.test.com.'))
+        self.assertIsNone(food_test_com_dot_cookie_keys_set)
+
+
+        ##### Process request #####
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie', 'cadbury': 'chocolate', 'happymeal': 'meal'})
+
+        request = Request('http://food.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'kfc': 'chicken', 'happymeal': 'meal'})
+
+        request = Request('http://test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'happymeal': 'meal'})
+
+
+    def test_domain_cookies_with_max_age(self):
+        """
+        Test setting and getting domain cookies with 'Max-Age' and/or 'Expires' attribute
+        """
+
+        # Cache keys for convenience
+        lookup_key      = self.cookie_manager.get_domain_cookie_lookup_key('sweet.test.com')
+        chipsahoy_key   = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'chipsahoy')
+        cadbury_key     = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'cadbury')
+        kfc_key         = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'kfc')
+        happymeal_key   = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'happymeal')
+
+        # Prepare test response
+        response = Response()
+        response.headers = {
+            'Set-Cookie': 'chipsahoy=cookie; Domain=sweet.test.com; Max-Age=3;, ' +
+                          'cadbury=chocolate; Domain=sweet.test.com; Max-Age=6;, ' +
+                          'kfc=chicken; Domain=sweet.test.com; Expires=%s;, ' % _getdate(future=3) +
+                          'happymeal=meal; Domain=sweet.test.com;, '
+        }
+        response.url = 'http://sweet.test.com/path'
+
+
+        ##### Process response cookies #####
+        self.cookie_manager.process_response(None, response)    # Note that 'request' is not used (thus None param)
+
+
+        ##### Process request #####
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie', 'cadbury': 'chocolate', 'kfc': 'chicken', 'happymeal': 'meal'})
+        cookie_keys_set = self.cookie_cache.get(lookup_key)
+        self.assertEqual(cookie_keys_set, set([chipsahoy_key, cadbury_key, kfc_key, happymeal_key]))
 
         # 3 seconds pass by
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=3)
-        set_cookie = get_domain_cookie('http://www.test.com/somepath')
-        self.assertEqual(len(set_cookie), 1)
-        self.assertTrue(set_cookie.has_key('oreo'))
-        self.assertFalse(set_cookie.has_key('twix'))
-        self.assertEqual(set_cookie['oreo'], self.cookies['oreo'].value)
 
-        cookie_name_list = self.cache.get('www.test.com')
-        self.assertEquals(len(cookie_name_list), 1)
-        self.assertIn('www.test.com.oreo', cookie_name_list)
-        self.assertNotIn('www.test.com.twix', cookie_name_list)
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'cadbury': 'chocolate', 'happymeal': 'meal'})
+        cookie_keys_set = self.cookie_cache.get(lookup_key)
+        self.assertEqual(cookie_keys_set, set([cadbury_key, happymeal_key]))
 
-        # 3 more seconds so all cookie should expired now
+        # 3 more seconds pass by
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=6)
-        set_cookie = get_domain_cookie('http://www.test.com/somepath')
-        self.assertEqual(len(set_cookie), 0)
-        self.assertFalse(set_cookie.has_key('oreo'))
-        self.assertFalse(set_cookie.has_key('twix'))
 
-        cookie_name_list = self.cache.get('www.test.com')
-        self.assertEquals(len(cookie_name_list), 0)
-        self.assertNotIn('www.test.com.oreo', cookie_name_list)
-        self.assertNotIn('www.test.com.twix', cookie_name_list)
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'happymeal': 'meal'})
+        cookie_keys_set = self.cookie_cache.get(lookup_key)
+        self.assertEqual(cookie_keys_set, set([happymeal_key]))
 
-    def test_extract_cookie(self):
-        expire_string = _getdate(future=3)
+
+    def test_domain_cookies_with_path(self):
+        """
+        Test setting and getting domain cookies with 'Path' attribute
+        """
+
+        # Cache keys for convenience
+        lookup_key      = self.cookie_manager.get_domain_cookie_lookup_key('sweet.test.com')
+        chipsahoy_key   = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '/', 'chipsahoy')
+        cadbury_key     = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '/help', 'cadbury')
+        kfc_key         = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '/help/me', 'kfc')
+        happymeal_key   = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'happymeal')
+
+        # Prepare test response
         response = Response()
-        response.status_code = 200
-        response._content = 'Mocked response content'
         response.headers = {
-            'Set-Cookie': 'chips_ahoy=cookie; expires=%s;, cadbury=chocolate;max-age=3;, coke=soda; expires=%s; max-age=5' % (expire_string, expire_string)
+            'Set-Cookie': 'chipsahoy=cookie; Domain=sweet.test.com; Path=/;, ' +
+                          'cadbury=chocolate; Domain=sweet.test.com; Path=/help;, ' +
+                          'kfc=chicken; Domain=sweet.test.com; Path=/help/me;, ' +
+                          'happymeal=meal; Domain=sweet.test.com;, '
         }
-        response.cookies = dict_from_string(response.headers['Set-Cookie'])
-
-        self.assertIsNone(self.cache.get('www.another_test.com'))
-
-        extract_cookie('http://www.another_test.com', response)
-
-        #assert that cookie for domain is there
-        name_list = self.cache.get('www.another_test.com')
-        self.assertEqual(set(['www.another_test.com.chips_ahoy', 'www.another_test.com.cadbury', 'www.another_test.com.coke']), name_list)
-
-        chips_ahoy = self.cache.get('www.another_test.com.chips_ahoy')
-        self.assertIsNotNone(chips_ahoy)
-        self.assertEqual('chips_ahoy', chips_ahoy.key)
-        self.assertEqual('cookie', chips_ahoy.value)
-        self.assertEqual(expire_string, chips_ahoy['expires'])
+        response.url = 'http://sweet.test.com/path'
 
 
-        cadbury = self.cache.get('www.another_test.com.cadbury')
-        self.assertIsNotNone(cadbury)
-        self.assertEqual('cadbury', cadbury.key)
-        self.assertEqual('chocolate', cadbury.value)
-        self.assertEqual('3', cadbury['max-age'])
+        ##### Process response cookies #####
+        self.cookie_manager.process_response(None, response)    # Note that 'request' is not used (thus None param)
 
-        coke = self.cache.get('www.another_test.com.coke')
-        self.assertIsNotNone(coke)
-        self.assertEqual('coke', coke.key)
-        self.assertEqual('soda', coke.value)
-        self.assertEqual('5', coke['max-age'])
-        self.assertEqual(expire_string, coke['expires'])
+        # Test sweet.test.com cache
+        sweet_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('sweet.test.com'))
+        self.assertIsNotNone(sweet_test_com_cookie_keys_set)
+        self.assertEqual(sweet_test_com_cookie_keys_set, set([chipsahoy_key, cadbury_key, kfc_key, happymeal_key]))
+
+        chipsahoy_cookie = self.cookie_cache.get(chipsahoy_key)
+        self.assertIsNotNone(chipsahoy_cookie)
+        self.assertEqual(chipsahoy_cookie.key, 'chipsahoy')
+        self.assertEqual(chipsahoy_cookie.value, 'cookie')
+        self.assertEqual(chipsahoy_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(chipsahoy_cookie['path'], '/')
+
+        cadbury_cookie = self.cookie_cache.get(cadbury_key)
+        self.assertIsNotNone(cadbury_cookie)
+        self.assertEqual(cadbury_cookie.key, 'cadbury')
+        self.assertEqual(cadbury_cookie.value, 'chocolate')
+        self.assertEqual(cadbury_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(cadbury_cookie['path'], '/help')
+
+        kfc_cookie = self.cookie_cache.get(kfc_key)
+        self.assertIsNotNone(kfc_cookie)
+        self.assertEqual(kfc_cookie.key, 'kfc')
+        self.assertEqual(kfc_cookie.value, 'chicken')
+        self.assertEqual(kfc_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(kfc_cookie['path'], '/help/me')
+
+        happymeal_cookie = self.cookie_cache.get(happymeal_key)
+        self.assertIsNotNone(happymeal_cookie)
+        self.assertEqual(happymeal_cookie.key, 'happymeal')
+        self.assertEqual(happymeal_cookie.value, 'meal')
+        self.assertEqual(happymeal_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(happymeal_cookie['path'], '')
 
 
+        ##### Process request #####
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie', 'cadbury': 'chocolate', 'happymeal': 'meal'})
+
+        request = Request('http://sweet.test.com/help/me')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie', 'cadbury': 'chocolate', 'kfc': 'chicken', 'happymeal': 'meal'})
+
+        request = Request('http://sweet.test.com/')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie', 'happymeal': 'meal'})
+
+
+    def test_origin_cookies(self):
+        """
+        Test setting and getting origin cookies
+        """
+
+        # Cookie cache keys for convenience
+        chipsahoy_key   = self.cookie_manager.get_origin_cookie_key('sweet.test.com', '', 'chipsahoy')
+        coke_key        = self.cookie_manager.get_origin_cookie_key('pop.test.com', '', 'coke')
+        squeeze_key     = self.cookie_manager.get_origin_cookie_key('test.com', '', 'squeeze')
+
+        # Prepare test responses
+        response0 = Response()
+        response0.headers = {
+            'Set-Cookie': 'chipsahoy=cookie;'
+        }
+        response0.url = 'http://sweet.test.com/path'
+
+        response1 = Response()
+        response1.headers = {
+            'Set-Cookie': 'coke=soda;'
+        }
+        response1.url = 'http://pop.test.com/path'
+
+        response2 = Response()
+        response2.headers = {
+            'Set-Cookie': 'squeeze=juice;'
+        }
+        response2.url = 'http://test.com/path'
+
+
+        ##### Process response cookie ####
+        self.cookie_manager.process_response(None, response0)    # Note that 'request' is not used (thus None param)
+        self.cookie_manager.process_response(None, response1)
+        self.cookie_manager.process_response(None, response2)
+
+        # Test sweet.test.com cache
+        sweet_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_origin_cookie_lookup_key('sweet.test.com'))
+        self.assertIsNotNone(sweet_test_com_cookie_keys_set)
+        self.assertEqual(sweet_test_com_cookie_keys_set, set([chipsahoy_key]))
+
+        chipsahoy_cookie = self.cookie_cache.get(chipsahoy_key)
+        self.assertIsNotNone(chipsahoy_cookie)
+        self.assertEqual(chipsahoy_cookie.key, 'chipsahoy')
+        self.assertEqual(chipsahoy_cookie.value, 'cookie')
+        self.assertEqual(chipsahoy_cookie['domain'], '')
+        self.assertEqual(chipsahoy_cookie['path'], '')
+
+        # Test pop.test.com cache
+        pop_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_origin_cookie_lookup_key('pop.test.com'))
+        self.assertIsNotNone(pop_test_com_cookie_keys_set)
+        self.assertEqual(pop_test_com_cookie_keys_set, set([coke_key]))
+
+        coke_cookie = self.cookie_cache.get(coke_key)
+        self.assertIsNotNone(coke_cookie)
+        self.assertEqual(coke_cookie.key, 'coke')
+        self.assertEqual(coke_cookie.value, 'soda')
+        self.assertEqual(coke_cookie['domain'], '')
+        self.assertEqual(coke_cookie['path'], '')
+
+        # Test test.com cache
+        test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_origin_cookie_lookup_key('test.com'))
+        self.assertIsNotNone(test_com_cookie_keys_set)
+        self.assertEqual(test_com_cookie_keys_set, set([squeeze_key]))
+
+        squeeze_cookie = self.cookie_cache.get(squeeze_key)
+        self.assertIsNotNone(squeeze_cookie)
+        self.assertEqual(squeeze_cookie.key, 'squeeze')
+        self.assertEqual(squeeze_cookie.value, 'juice')
+        self.assertEqual(squeeze_cookie['domain'], '')
+        self.assertEqual(squeeze_cookie['path'], '')
+
+
+        ##### Process request ######
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie'})
+
+        request = Request('http://pop.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'coke': 'soda'})
+
+        request = Request('http://test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'squeeze': 'juice'})
+
+
+    def test_origin_cookies_with_max_age(self):
+        """
+        Test setting and getting origin cookies with 'Max-Age' and/or 'Expires' attribute
+        """
+
+        # Cookie cache keys for convenience
+        lookup_key      = self.cookie_manager.get_origin_cookie_lookup_key('sweet.test.com')
+        chipsahoy_key   = self.cookie_manager.get_origin_cookie_key('sweet.test.com', '', 'chipsahoy')
+        coke_key        = self.cookie_manager.get_origin_cookie_key('sweet.test.com', '', 'coke')
+        squeeze_key     = self.cookie_manager.get_origin_cookie_key('sweet.test.com', '', 'squeeze')
+        kitkat_key      = self.cookie_manager.get_origin_cookie_key('sweet.test.com', '', 'kitkat')
+
+        # Prepare test responses
+        response0 = Response()
+        response0.headers = {
+            'Set-Cookie': 'chipsahoy=cookie; Max-Age=3;, ' +
+                          'coke=soda; Max-Age=6;, ' +
+                          'squeeze=juice; Expires=%s;, ' % _getdate(future=3) +
+                          'kitkat=chocolate;'
+        }
+        response0.url = 'http://sweet.test.com/path'
+
+
+        ##### Process response cookie ####
+        self.cookie_manager.process_response(None, response0)    # Note that 'request' is not used (thus None param)
+
+
+        ##### Process request #####
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie', 'coke': 'soda', 'squeeze': 'juice', 'kitkat': 'chocolate'})
+        cookie_keys_set = self.cookie_cache.get(lookup_key)
+        self.assertEqual(cookie_keys_set, set([chipsahoy_key, coke_key, squeeze_key, kitkat_key]))
+
+        # 3 seconds pass by
         dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=3)
-        # assert that we set the max-age for cache correctly for both max-age and expires
-        chips_ahoy = self.cache.get('www.another_test.com.chips_ahoy')
-        self.assertIsNone(chips_ahoy)
 
-        cadbury = self.cache.get('www.another_test.com.cadbury')
-        self.assertIsNone(cadbury)
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'coke': 'soda', 'kitkat': 'chocolate'})
+        cookie_keys_set = self.cookie_cache.get(lookup_key)
+        self.assertEqual(cookie_keys_set, set([coke_key, kitkat_key]))
 
-        # should still exist as max-age has higher priority than expires
-        coke = self.cache.get('www.another_test.com.coke')
-        self.assertIsNotNone(coke)
+        # 3 more seconds pass by
+        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=6)
 
-        dummycache_cache.datetime.now = lambda: datetime.now() + timedelta(seconds=5)
-        coke = self.cache.get('www.another_test.com.coke')
-        self.assertIsNone(coke)
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'kitkat': 'chocolate'})
+        cookie_keys_set = self.cookie_cache.get(lookup_key)
+        self.assertEqual(cookie_keys_set, set([kitkat_key]))
 
 
-    def test_get_path_cookie(self):
-        expire_string = _getdate(future=3)
-        response = Response()
-        response.status_code = 200
-        response._content = 'Mocked response content'
-        response.headers = {
-            'Set-Cookie': 'chips_ahoy=cookie; expires=%s; path="/sweet", ' \
-                          'cadbury=chocolate;max-age=3; path="/sweet/", ' \
-                          'coke=soda; path="/soda/"; expires=%s; max-age=5;, '\
-                          'cottoncandy=soft; path="/sweet/tooth/";, '\
-                          'orange=fruit;, grape=sweet; path="/";' % (expire_string, expire_string)
+    def test_domain_and_origin_cookies(self):
+        """
+        Test setting and getting domain and origin cookies
+        """
+
+        # Cookie cache keys for convenience
+        chipsahoy_key  = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'chipsahoy')
+        cadbury_key    = self.cookie_manager.get_domain_cookie_key('sweet.test.com', '', 'cadbury')
+        kfc_key        = self.cookie_manager.get_domain_cookie_key('food.test.com', '', 'kfc')
+        happymeal_key  = self.cookie_manager.get_domain_cookie_key('test.com', '', 'happymeal')
+
+        coke_key       = self.cookie_manager.get_origin_cookie_key('www.test.com', '', 'coke')
+        squeeze_key    = self.cookie_manager.get_origin_cookie_key('test.com', '', 'squeeze')
+
+        # Prepare test responses
+        response0 = Response()
+        response0.headers = {
+            'Set-Cookie': 'chipsahoy=cookie; Domain=sweet.test.com;, ' +
+                          'cadbury=chocolate; Domain=sweet.test.com;, ' +
+                          'kfc=chicken; Domain=food.test.com;, ' +
+                          'happymeal=meal; Domain=test.com;, ' +
+                          'coke=soda;'
         }
-        response.cookies = dict_from_string(response.headers['Set-Cookie'])
+        response0.url = 'http://www.test.com/path'
 
-        self.assertIsNone(self.cache.get('www.another_test.com'))
-
-        extract_cookie('http://www.another_test.com', response)
-
-        self.assertIsNotNone(self.cache.get('www.another_test.com'))
-
-        set_cookie = get_domain_cookie('http://www.another_test.com/sweetxxx/')
-        self.assertFalse(set_cookie.has_key('chips_ahoy'))
-        self.assertFalse(set_cookie.has_key('cadbury'))
-        self.assertFalse(set_cookie.has_key('cottoncandy'))
-        self.assertFalse(set_cookie.has_key('coke'))
-        self.assertTrue(set_cookie.has_key('orange'))
-        self.assertTrue(set_cookie.has_key('grape'))
-
-
-        set_cookie = get_domain_cookie('http://www.another_test.com/sweet/')
-        self.assertTrue(set_cookie.has_key('chips_ahoy'))
-        self.assertTrue(set_cookie.has_key('cadbury'))
-        self.assertFalse(set_cookie.has_key('cottoncandy'))
-        self.assertFalse(set_cookie.has_key('coke'))
-        self.assertTrue(set_cookie.has_key('orange'))
-        self.assertTrue(set_cookie.has_key('grape'))
-
-        set_cookie = get_domain_cookie('http://www.another_test.com/sweet/tooth/')
-        self.assertTrue(set_cookie.has_key('chips_ahoy'))
-        self.assertTrue(set_cookie.has_key('cadbury'))
-        self.assertTrue(set_cookie.has_key('cottoncandy'))
-        self.assertFalse(set_cookie.has_key('coke'))
-        self.assertTrue(set_cookie.has_key('orange'))
-        self.assertTrue(set_cookie.has_key('grape'))
-
-        set_cookie = get_domain_cookie('http://www.another_test.com/soda/')
-        self.assertFalse(set_cookie.has_key('chips_ahoy'))
-        self.assertFalse(set_cookie.has_key('cadbury'))
-        self.assertFalse(set_cookie.has_key('cottoncandy'))
-        self.assertTrue(set_cookie.has_key('coke'))
-        self.assertTrue(set_cookie.has_key('orange'))
-        self.assertTrue(set_cookie.has_key('grape'))
-
-        set_cookie = get_domain_cookie('http://www.another_test.com')
-        self.assertFalse(set_cookie.has_key('chips_ahoy'))
-        self.assertFalse(set_cookie.has_key('cadbury'))
-        self.assertFalse(set_cookie.has_key('cottoncandy'))
-        self.assertFalse(set_cookie.has_key('coke'))
-        self.assertTrue(set_cookie.has_key('orange'))
-        self.assertTrue(set_cookie.has_key('grape'))
-
-        set_cookie = get_domain_cookie('http://www.another_test.com/')
-        self.assertFalse(set_cookie.has_key('chips_ahoy'))
-        self.assertFalse(set_cookie.has_key('cadbury'))
-        self.assertFalse(set_cookie.has_key('cottoncandy'))
-        self.assertFalse(set_cookie.has_key('coke'))
-        self.assertTrue(set_cookie.has_key('orange'))
-        self.assertTrue(set_cookie.has_key('grape'))
-
-
-    def test_extract_cookie_for_domain_attribute(self):
-        response = Response()
-        response.status_code = 200
-        response._content = 'Mocked response content'
-        response.headers = {
-            'Set-Cookie': 'chips_ahoy=cookie; domain=sweet.another_test.com;, cadbury=chocolate; domain=sweet.another_test.com; coke=soda;'
+        response1 = Response()
+        response1.headers = {
+            'Set-Cookie': 'squeeze=juice;'
         }
-        response.cookies = dict_from_string(response.headers['Set-Cookie'])
+        response1.url = 'http://test.com/path'
 
-        self.assertIsNone(self.cache.get('www.another_test.com'))
 
-        extract_cookie('http://www.another_test.com', response)
+        ##### Process response cookie #####
+        self.cookie_manager.process_response(None, response0)    # Note that 'request' is not used (thus None param)
+        self.cookie_manager.process_response(None, response1)
 
-        #assert that cookie for domain is there
-        sweet_domain_name_list = self.cache.get('sweet.another_test.com')
-        self.assertIsNotNone(sweet_domain_name_list)
-        self.assertEqual(set(['sweet.another_test.com.chips_ahoy', 'sweet.another_test.com.cadbury']), sweet_domain_name_list)
+        # Test sweet.test.com cache
+        sweet_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('sweet.test.com'))
+        self.assertIsNotNone(sweet_test_com_cookie_keys_set)
+        self.assertEqual(sweet_test_com_cookie_keys_set, set([chipsahoy_key, cadbury_key]))
 
-        chips_ahoy = self.cache.get('sweet.another_test.com.chips_ahoy')
-        self.assertIsNotNone(chips_ahoy)
-        self.assertEqual('chips_ahoy', chips_ahoy.key)
-        self.assertEqual('cookie', chips_ahoy.value)
+        chipsahoy_cookie = self.cookie_cache.get(chipsahoy_key)
+        self.assertIsNotNone(chipsahoy_cookie)
+        self.assertEqual(chipsahoy_cookie.key, 'chipsahoy')
+        self.assertEqual(chipsahoy_cookie.value, 'cookie')
+        self.assertEqual(chipsahoy_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(chipsahoy_cookie['path'], '')
 
-        origin_name_list = self.cache.get('www.another_test.com')
-        self.assertIsNotNone(origin_name_list)
-        self.assertEqual(set(['www.another_test.com.coke']), origin_name_list)
+        cadbury_cookie = self.cookie_cache.get(cadbury_key)
+        self.assertIsNotNone(cadbury_cookie)
+        self.assertEqual(cadbury_cookie.key, 'cadbury')
+        self.assertEqual(cadbury_cookie.value, 'chocolate')
+        self.assertEqual(cadbury_cookie['domain'], 'sweet.test.com')
+        self.assertEqual(cadbury_cookie['path'], '')
+
+        # Test food.test.com cache
+        food_test_com_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('food.test.com'))
+        self.assertIsNotNone(food_test_com_cookie_keys_set)
+        self.assertEqual(food_test_com_cookie_keys_set, set([kfc_key]))
+
+        kfc_cookie = self.cookie_cache.get(kfc_key)
+        self.assertIsNotNone(kfc_cookie)
+        self.assertEqual(kfc_cookie.key, 'kfc')
+        self.assertEqual(kfc_cookie.value, 'chicken')
+        self.assertEqual(kfc_cookie['domain'], 'food.test.com')
+        self.assertEqual(kfc_cookie['path'], '')
+
+        # Test www.test.com cache
+        www_test_com_origin_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_origin_cookie_lookup_key('www.test.com'))
+        self.assertIsNotNone(www_test_com_origin_cookie_keys_set)
+        self.assertEqual(www_test_com_origin_cookie_keys_set, set([coke_key]))
+
+        coke_cookie = self.cookie_cache.get(coke_key)
+        self.assertIsNotNone(coke_cookie)
+        self.assertEqual(coke_cookie.key, 'coke')
+        self.assertEqual(coke_cookie.value, 'soda')
+        self.assertEqual(coke_cookie['domain'], '')
+        self.assertEqual(coke_cookie['path'], '')
+
+        # Test test.com cache
+        test_com_origin_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_domain_cookie_lookup_key('test.com'))
+        self.assertIsNotNone(test_com_origin_cookie_keys_set)
+        self.assertEqual(test_com_origin_cookie_keys_set, set([happymeal_key]))
+
+        squeeze_cookie = self.cookie_cache.get(happymeal_key)
+        self.assertIsNotNone(squeeze_cookie)
+        self.assertEqual(squeeze_cookie.key, 'happymeal')
+        self.assertEqual(squeeze_cookie.value, 'meal')
+        self.assertEqual(squeeze_cookie['domain'], 'test.com')
+        self.assertEqual(squeeze_cookie['path'], '')
+
+        test_com_origin_cookie_keys_set = self.cookie_cache.get(self.cookie_manager.get_origin_cookie_lookup_key('test.com'))
+        self.assertIsNotNone(test_com_origin_cookie_keys_set)
+        self.assertEqual(test_com_origin_cookie_keys_set, set([squeeze_key]))
+
+        squeeze_cookie = self.cookie_cache.get(squeeze_key)
+        self.assertIsNotNone(squeeze_cookie)
+        self.assertEqual(squeeze_cookie.key, 'squeeze')
+        self.assertEqual(squeeze_cookie.value, 'juice')
+        self.assertEqual(squeeze_cookie['domain'], '')
+        self.assertEqual(squeeze_cookie['path'], '')
+        
+
+        ##### Process request #####
+        request = Request('http://sweet.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'chipsahoy': 'cookie', 'cadbury': 'chocolate', 'happymeal': 'meal'})
+
+        request = Request('http://food.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'kfc': 'chicken', 'happymeal': 'meal'})
+
+        request = Request('http://www.test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'coke': 'soda', 'happymeal': 'meal'})
+
+        request = Request('http://test.com/help')
+        self.cookie_manager.process_request(request)
+        self.assertEqual(request.cookies, {'happymeal': 'meal', 'squeeze': 'juice'})
 
 
     def test_cookie_no_dashed_expires_date_format(self):
@@ -237,37 +579,40 @@ class TestCookie(TestCase):
         SimpleCookie.loads recognize only dashed date style format, this is to make sure that if server send a new date
         format
         """
+
+        # Cookie cache keys for convenience
+        chipsahoy_key  = self.cookie_manager.get_origin_cookie_key('www.test.com', '', 'chipsahoy')
+        cadbury_key     = self.cookie_manager.get_origin_cookie_key('www.test.com', '', 'cadbury')
+        coke_key        = self.cookie_manager.get_origin_cookie_key('www.test.com', '', 'coke')
+
+        # Prepare test response
         response = Response()
-        response.status_code = 200
-        response._content = 'Mocked response content'
         response.headers = {
-            'Set-Cookie': 'chips_ahoy=cookie; expires=Thu, 12 Jan 2013 12:34:22 GMT;, '
+            'Set-Cookie': 'chipsahoy=cookie; expires=Thu, 12 Jan 2013 12:34:22 GMT;, '
                           'cadbury=chocolate; Expires=Wed, 20-Feb-2014 08:23:55 GMT;, '
                           'coke=soda; Expires = Fri, 02 Jan 2021 GMT;'
         }
+        response.url = 'http://www.test.com/'
 
-        extract_cookie('http://www.test.com', response)
 
-        chips_ahoy = self.cache.get('www.test.com.chips_ahoy')
-        self.assertIsNotNone(chips_ahoy)
-        self.assertEqual('chips_ahoy', chips_ahoy.key)
-        self.assertEqual('cookie', chips_ahoy.value)
-        self.assertEqual('Thu, 12-Jan-2013 12:34:22 GMT', chips_ahoy['expires'])
+        ##### Process response cookie #####
+        self.cookie_manager.process_response(None, response)    # Note that 'request' is not used (thus None param)
 
-        cadbury = self.cache.get('www.test.com.cadbury')
-        self.assertIsNotNone(cadbury)
-        self.assertEqual('cadbury', cadbury.key)
-        self.assertEqual('chocolate', cadbury.value)
-        self.assertEqual('Wed, 20-Feb-2014 08:23:55 GMT', cadbury['expires'])
+        chipsahoy_cookie = self.cookie_cache.get(chipsahoy_key)
+        self.assertIsNotNone(chipsahoy_cookie)
+        self.assertEqual('chipsahoy', chipsahoy_cookie.key)
+        self.assertEqual('cookie', chipsahoy_cookie.value)
+        self.assertEqual('Thu, 12-Jan-2013 12:34:22 GMT', chipsahoy_cookie['expires'])
+
+        cadbury_cookie = self.cookie_cache.get(cadbury_key)
+        self.assertIsNotNone(cadbury_cookie)
+        self.assertEqual('cadbury', cadbury_cookie.key)
+        self.assertEqual('chocolate', cadbury_cookie.value)
+        self.assertEqual('Wed, 20-Feb-2014 08:23:55 GMT', cadbury_cookie['expires'])
 
         # cookie with wrong expires format won't get stored!
-        coke = self.cache.get('www.test.com.coke')
-        self.assertIsNotNone(coke)
-        self.assertEqual('coke', coke.key)
-        self.assertEqual('soda', coke.value)
-        self.assertEqual('', coke['expires'])
-
-
-
-
-
+        coke_cookie = self.cookie_cache.get(coke_key)
+        self.assertIsNotNone(coke_cookie)
+        self.assertEqual('coke', coke_cookie.key)
+        self.assertEqual('soda', coke_cookie.value)
+        self.assertEqual('', coke_cookie['expires'])
