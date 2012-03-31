@@ -1,28 +1,15 @@
 from datetime import datetime, timedelta
-from unittest import TestCase
 
 from mock import patch
 from requests.models import Response
 from dummycache import cache as dummycache_cache
 
 from .. import async
-from ..defaults import get_default_cache
-from .datetimestub import DatetimeStub
+from .base import BaseTestCase
 
 
 @patch('requests.get')
-class TestClient(TestCase):
-
-    def setUp(self):
-        super(TestClient, self).setUp()
-        dummycache_cache.datetime = DatetimeStub()
-        self.cache = get_default_cache()
-        self.cache.clear()
-
-    def tearDown(self):
-        self.cache.clear()
-        dummycache_cache.datetime = datetime
-        super(TestClient, self).tearDown()
+class TestAsync(BaseTestCase):
 
     def test_get(self, mock_get):
         # Setup mock
