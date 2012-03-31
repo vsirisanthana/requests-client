@@ -1,11 +1,10 @@
 import requests
-from requests import request, head, post, patch, put, delete, options, TooManyRedirects
 
-from .cache import CacheManager
-from .cookie import CookieManager
-from .defaults import get_default_cache, get_default_cookie_cache, get_default_redirect_cache
-from .models import Request
-from .redirect import RedirectManager
+from .dogbutler.cache import CacheManager
+from .dogbutler.cookie import CookieManager
+from .dogbutler.defaults import get_default_cache, get_default_cookie_cache, get_default_redirect_cache
+from .dogbutler.models import Request
+from .dogbutler.redirect import RedirectManager
 
 
 DEFAULT_KEY_PREFIX = 'dogbutler'

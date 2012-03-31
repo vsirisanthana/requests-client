@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 from dummycache import cache as dummycache_cache
 from requests.models import Response
 
-from ..cookie import CookieManager
-from ..models import Request
-from .base import BaseTestCase
+from ..dogbutler.cookie import CookieManager
+from ..dogbutler.models import Request
+from .dogbutler.tests.base import BaseTestCase
 
 
 class TestCookie(BaseTestCase):

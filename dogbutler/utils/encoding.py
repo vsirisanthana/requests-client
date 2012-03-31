@@ -1,6 +1,6 @@
 import types
 import urllib
-from .functional import Promise
+from .dogbutler.utils.functional import Promise
 
 
 def smart_str(s, encoding='utf-8', strings_only=False, errors='strict'):
