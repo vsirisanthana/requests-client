@@ -19,8 +19,8 @@ An example: i18n middleware would need to distinguish caches by the
 
 import re
 
-from .encoding import iri_to_uri
-from .hashcompat import md5_constructor
+from .dogbutler.utils.encoding import iri_to_uri
+from .dogbutler.utils.hashcompat import md5_constructor
 
 cc_delim_re = re.compile(r'\s*,\s*')
 

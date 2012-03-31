@@ -1,4 +1,3 @@
-from Cookie import _getdate
 from datetime import datetime, timedelta
 
 from dummycache import cache as dummycache_cache
@@ -7,8 +6,8 @@ from mock import patch
 from requests.models import Response
 
 from .. import get
-from ..defaults import set_default_cache
-from .base import BaseTestCase
+from ..dogbutler.defaults import set_default_cache
+from .dogbutler.tests.base import BaseTestCase
 
 
 @patch('requests.get')

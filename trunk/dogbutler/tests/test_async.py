@@ -4,8 +4,8 @@ from mock import patch
 from requests.models import Response
 from dummycache import cache as dummycache_cache
 
-from .. import async
-from .base import BaseTestCase
+from .dogbutler.tests.base import BaseTestCase
+from dogbutler import async
 
 
 @patch('requests.get')

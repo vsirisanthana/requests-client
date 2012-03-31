@@ -3,8 +3,8 @@ from datetime import datetime
 from dummycache import cache as dummycache_cache
 from unittest import TestCase
 
-from ..defaults import get_default_cache, get_default_cookie_cache, get_default_redirect_cache
-from .datetimestub import DatetimeStub
+from ..dogbutler.defaults import get_default_cache, get_default_cookie_cache, get_default_redirect_cache
+from .dogbutler.tests.datetimestub import DatetimeStub
 
 
 class BaseTestCase(TestCase):
