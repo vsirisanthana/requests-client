@@ -21,6 +21,12 @@ def get_max_age(cookie):
         max_age = int(cookie['max-age'])
     return max_age
 
+def is_domain_valid(domain):
+    if domain.endswith('.'):
+        return False
+    else:
+        return True
+
 def normalize_domain(domain):
     return domain.lstrip('.')
 
@@ -59,13 +65,13 @@ class CookieManager(object):
         return '%s.%s.%s.%s' % (self.key_prefix, normalize_domain(domain), path, name)
 
     def get_domain_cookie_lookup_key(self, domain):
-        return '%s.%s' % (self.key_prefix, domain)
+        return '%s.%s' % (self.key_prefix, normalize_domain(domain))
 
     def get_origin_cookie_key(self, origin, path, name):
         return '%s.%s.%s.%s.%s' % (self.key_prefix, ORIGIN_KEY_PREFIX, normalize_domain(origin), path, name)
 
     def get_origin_cookie_lookup_key(self, origin):
-        return '%s.%s.%s' % (self.key_prefix, ORIGIN_KEY_PREFIX, origin)
+        return '%s.%s.%s' % (self.key_prefix, ORIGIN_KEY_PREFIX, normalize_domain(origin))
 
     def get_cookies(self, url):
         """
@@ -137,6 +143,9 @@ class CookieManager(object):
         Set domain cookie (i.e. cookie that has Domain attribute) in cache.
         """
         domain = cookie['domain']
+        if not is_domain_valid(domain):
+            return
+
         max_age = get_max_age(cookie)
         name = cookie.key
         path = cookie['path']
